@@ -1,0 +1,152 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}{{ exam.title }} - 成绩列表 - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'teacher:exam_list' %}">考试管理</a></li>
+<li class="breadcrumb-item"><a href="{% url 'teacher:exam_edit' exam.id %}">{{ exam.title }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">成绩列表</li>
+{% endblock %}
+
+{% block active_menu %}exams{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📊 {{ exam.title }} - 成绩列表</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'teacher:exam_edit' exam.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> 返回考试编辑
+        </a>
+        <button onclick="exportResults()" class="btn btn-success">
+            <i class="bi bi-download"></i> 导出 Excel
+        </button>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card primary">
+            <div class="stat-number">{{ records.count }}</div>
+            <div class="stat-label">已交卷数</div>
+        </div>
+    </div>
+    {% if records %}
+    <div class="col-md-3">
+        <div class="stat-card success">
+            <div class="stat-number">
+                {% widthratio records|first:"final_score" 1 0 %}
+            </div>
+            <div class="stat-label">最高分</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card warning">
+            <div class="stat-number">
+                {% with total=0 count=0 %}
+                    {% for record in records %}
+                        {% add total record.final_score %}
+                        {% add count 1 %}
+                    {% endfor %}
+                    {% if count > 0 %}
+                        {{ total|floatformat:1 }}
+                    {% else %}
+                        0
+                    {% endif %}
+                {% endwith %}
+            </div>
+            <div class="stat-label">平均分</div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="col-md-3">
+        <div class="stat-card info">
+            <div class="stat-number">{{ exam.max_score }}</div>
+            <div class="stat-label">满分</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if records %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="recordsTable">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>学号</th>
+                        <th>姓名</th>
+                        <th>得分</th>
+                        <th>正确率</th>
+                        <th>提交时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>
+                            {% if forloop.counter == 1 %}
+                                <span class="badge bg-warning">🥇 {{ forloop.counter }}</span>
+                            {% elif forloop.counter == 2 %}
+                                <span class="badge bg-secondary">🥈 {{ forloop.counter }}</span>
+                            {% elif forloop.counter == 3 %}
+                                <span class="badge bg-danger">🥉 {{ forloop.counter }}</span>
+                            {% else %}
+                                {{ forloop.counter }}
+                            {% endif %}
+                        </td>
+                        <td>{{ record.student.student_id }}</td>
+                        <td>{{ record.student.get_full_name|default:record.student.username }}</td>
+                        <td>
+                            <strong class="{% if record.final_score >= exam.max_score|floatformat:0|multiply:0.6 %}text-success{% else %}text-danger{% endif %}">
+                                {{ record.final_score|floatformat:2 }}
+                            </strong>
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar {% if record.final_score >= exam.max_score|floatformat:0|multiply:0.9 %}bg-success{% elif record.final_score >= exam.max_score|floatformat:0|multiply:0.6 %}bg-primary{% else %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ record.final_score|floatformat:0|divide:exam.max_score|multiply:100 }}%;" 
+                                     aria-valuenow="{{ record.final_score|floatformat:0|divide:exam.max_score|multiply:100 }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ record.final_score|floatformat:0|divide:exam.max_score|multiply:100|floatformat:1 }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ record.submitted_at|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            <a href="#" class="btn btn-outline-primary btn-sm" onclick="viewDetail({{ record.id }})">
+                                <i class="bi bi-eye"></i> 查看详情
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无答卷记录</h5>
+            <p>还没有学生提交答卷</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportResults() {
+    window.location.href = `/teacher/exams/{{ exam.id }}/records/export/`;
+}
+
+function viewDetail(recordId) {
+    // TODO: 实现查看详情功能
+    showToast('功能开发中...', 'info');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}题目管理 - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">题目管理</li>
+{% endblock %}
+
+{% block active_menu %}questions{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📝 题目管理</h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ total_questions|default:0 }}</h2>
+                <small>题目总数</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ exams.count }}</h2>
+                <small>考试数量</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ total_questions|default:0|add:10 }}</h2>
+                <small>可添加题目</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span><i class="bi bi-list-ul"></i> 考试题目列表</span>
+    </div>
+    <div class="card-body p-0">
+        {% if exams %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>考试名称</th>
+                        <th>题目数量</th>
+                        <th>满分</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                    <tr>
+                        <td>{{ exam.id }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ exam.title }}</div>
+                            <small class="text-muted">{{ exam.description|truncatechars:30|default:"-" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ exam.questions_count|default:0 }}</span>
+                        </td>
+                        <td>{{ exam.max_score }}分</td>
+                        <td>
+                            {% if exam.is_ongoing %}
+                                <span class="badge-status badge-ongoing">🟢 进行中</span>
+                            {% elif exam.is_not_started %}
+                                <span class="badge-status badge-not-started">🔵 未开始</span>
+                            {% else %}
+                                <span class="badge-status badge-over">🔴 已结束</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <a href="{% url 'teacher:exam_questions' exam.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> 管理题目
+                                </a>
+                                <a href="{% url 'teacher:exam_edit' exam.id %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-gear"></i> 编辑考试
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无考试数据</h5>
+            <p>请先创建考试，然后添加题目</p>
+            <a href="{% url 'teacher:exam_create' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-plus-circle"></i> 创建考试
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

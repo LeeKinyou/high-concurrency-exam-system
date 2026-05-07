@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试结果 - {{ exam.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .score-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .score-number {
+            font-size: 72px;
+            font-weight: bold;
+        }
+        .result-card {
+            border-left: 4px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        .result-correct {
+            border-left-color: #28a745;
+        }
+        .result-wrong {
+            border-left-color: #dc3545;
+        }
+        .result-partial {
+            border-left-color: #ffc107;
+        }
+        .answer-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .badge-correct {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .badge-wrong {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .badge-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .type-score-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .progress-bar-score {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .wait-notice {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px dashed #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .complete-notice {
+            background: linear-gradient(135deg, #d4edda 0%, #98d1a8 100%);
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">📝 考试结果</a>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+
+        {% if not is_exam_ended %}
+        <div class="wait-notice">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <span class="display-4">⏳</span>
+                </div>
+                <div class="col">
+                    <h5 class="mb-1 text-warning-emphasis">考试进行中</h5>
+                    <p class="mb-0 text-warning">您的答卷已成功提交！当前仅可查看成绩信息。<br>待考试正式结束后，即可查看正确答案及详细解析。</p>
+                    <small class="text-muted">考试结束时间：{{ exam.end_time|date:"Y-m-d H:i:s" }}</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="complete-notice">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <span class="display-4">✅</span>
+                </div>
+                <div class="col">
+                    <h5 class="mb-1 text-success-emphasis">考试已结束</h5>
+                    <p class="mb-0 text-success">您可以查看完整的考试结果，包括各题的正确答案和详细解析。</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="score-card">
+            <h2>{{ exam.title }}</h2>
+            <div class="score-number">{{ record.final_score }}</div>
+            <p>满分：{{ exam.max_score }}分</p>
+            <div class="mt-3">
+                <span class="badge bg-light text-dark me-2">
+                    ✅ 正确：{{ record.grading_details.correct_count|default:0 }}题
+                </span>
+                <span class="badge bg-light text-dark">
+                    📋 总题数：{{ record.grading_details.question_count|default:0 }}题
+                </span>
+            </div>
+            <p class="mt-3">
+                <small>提交时间：{{ record.submitted_at|date:"Y-m-d H:i:s" }}</small><br>
+                <small>提交方式：{{ record.get_submission_method_display }}</small>
+            </p>
+        </div>
+
+        {% if question_type_scores %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>📊 各题型得分</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for type_score in question_type_scores %}
+                    <div class="col-md-6">
+                        <div class="type-score-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold">{{ type_score.display }}（{{ type_score.count }}题）</span>
+                                <span class="fw-bold">{{ type_score.got_score }} / {{ type_score.max_score }}分</span>
+                            </div>
+                            <div class="progress progress-bar-score">
+                                {% widthratio type_score.got_score type_score.max_score 100 as score_percent %}
+                                <div class="progress-bar {% if score_percent >= 80 %}bg-success{% elif score_percent >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ score_percent }}%">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_exam_ended %}
+        <div class="card">
+            <div class="card-header">
+                <h5>📋 答题详情</h5>
+            </div>
+            <div class="card-body">
+                {% if questions_with_details %}
+                    {% for question in questions_with_details %}
+                    <div class="card result-card {% if question.is_correct %}result-correct{% elif question.got_score > 0 %}result-partial{% else %}result-wrong{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    第{{ forloop.counter }}题
+                                    <span class="badge bg-secondary ms-2">{{ question.question_type_display }}</span>
+                                </h6>
+                                <span class="badge {% if question.is_correct %}bg-success{% elif question.got_score > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                    {{ question.got_score }}/{{ question.max_score }}分
+                                </span>
+                            </div>
+                            <p class="mt-3 fw-bold">{{ question.question_text }}</p>
+
+                            {% if question.question_type == 'choice' and question.options %}
+                            <div class="mb-3">
+                                {% for option_key, option_value in question.options %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" disabled
+                                           {% if question.student_answer == option_key %}checked{% endif %}>
+                                    <label class="form-check-label {% if option_key == question.correct_answer %}text-success fw-bold{% endif %} {% if question.student_answer == option_key and option_key != question.correct_answer %}text-danger text-decoration-line-through{% endif %}">
+                                        {{ option_key }}. {{ option_value }}
+                                        {% if option_key == question.correct_answer %}
+                                            <span class="badge bg-success ms-2">✓ 正确答案</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="answer-badge {% if question.is_correct %}badge-correct{% else %}badge-wrong{% endif %}">
+                                        <strong>你的答案：</strong>
+                                        {% if question.student_answer %}{{ question.student_answer }}{% else %}<span class="text-muted">未作答</span>{% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="answer-badge badge-correct">
+                                        <strong>正确答案：</strong>{{ question.correct_answer }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        暂无详细答题记录
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <a href="{% url 'exams:exam_list' %}" class="btn btn-primary">
+                ← 返回考试列表
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

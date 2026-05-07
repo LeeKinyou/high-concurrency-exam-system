@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ exam.title }} - 答题页面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .question-card {
+            margin-bottom: 30px;
+            border-left: 4px solid #0d6efd;
+        }
+        .question-number {
+            background-color: #0d6efd;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+        }
+        .option-label {
+            display: block;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-label:hover {
+            background-color: #f8f9fa;
+            border-color: #0d6efd;
+        }
+        .option-label input[type="radio"] {
+            margin-right: 10px;
+        }
+        .option-label.selected {
+            background-color: #e7f3ff;
+            border-color: #0d6efd;
+        }
+        .blank-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .blank-input:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+            outline: none;
+        }
+        .timer-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(to right, #28a745, #ffc107, #dc3545);
+            z-index: 1000;
+            transition: width 1s linear;
+        }
+        .save-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #d1e7dd;
+            color: #0f5132;
+            display: none;
+            z-index: 1000;
+        }
+        .question-text {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .score-badge {
+            background-color: #ffc107;
+            color: #000;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="timer-bar" id="timerBar"></div>
+    
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">📝 {{ exam.title }}</a>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-item nav-link text-white">
+                    ⏰ 剩余时间：<span id="remainingTime">--:--:--</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="alert alert-info">
+            <strong>📋 考试说明：</strong>
+            <ul class="mb-0">
+                <li>本试卷共 {{ questions.count }} 题，满分 {{ exam.max_score }} 分</li>
+                <li>选择题请使用单选按钮，填空题请在输入框中填写答案</li>
+                <li>答案会自动保存，无需手动提交</li>
+                <li>考试结束时间：{{ exam.end_time|date:"Y-m-d H:i:s" }}</li>
+            </ul>
+        </div>
+
+        <form id="examForm">
+            {% csrf_token %}
+            
+            {% for question in questions %}
+            <div class="card question-card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="question-number">{{ forloop.counter }}</span>
+                        <span class="question-text">
+                            {{ question.question_text }}
+                            <span class="score-badge">{{ question.score }}分</span>
+                        </span>
+                        
+                        {% if question.question_type == 'choice' %}
+                            <!-- 选择题 -->
+                            <div class="mt-3">
+                                {% for option in question.get_options %}
+                                <label class="option-label" id="label_{{ question.id }}_{{ option.0 }}">
+                                    <input type="radio" 
+                                           name="question_{{ question.id }}" 
+                                           value="{{ option.0 }}"
+                                           data-question-id="{{ question.id }}">
+                                    <strong>{{ option.0 }}.</strong> {{ option.1 }}
+                                </label>
+                                {% endfor %}
+                            </div>
+                        {% elif question.question_type == 'blank' %}
+                            <!-- 填空题 -->
+                            <div class="mt-3">
+                                <input type="text" 
+                                       class="blank-input" 
+                                       name="question_{{ question.id }}"
+                                       placeholder="请输入答案"
+                                       data-question-id="{{ question.id }}">
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="text-center mt-5 mb-5">
+                <button type="button" class="btn btn-primary btn-lg px-5" id="submitBtn">
+                    ✅ 提交试卷
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="save-status" id="saveStatus">
+        ✓ 答案已保存
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const EXAM_ID = {{ exam.id }};
+        const EXAM_END_TIME = new Date('{{ exam.end_time|date:"c" }}').getTime();
+        const EXAM_START_TIME = new Date('{{ exam.start_time|date:"c" }}').getTime();
+        const CSRF_TOKEN = '{{ csrf_token }}';
+        
+        let lastSyncTime = null;
+        let syncRetryCount = 0;
+        const MAX_SYNC_RETRIES = 3;
+        const SYNC_INTERVAL = 60000; // 1 分钟同步一次
+        let isSubmitting = false; // 防止重复提交
+        
+        // 页面加载时恢复缓存数据
+        window.onload = function() {
+            restoreAnswersFromCache();
+            startTimer();
+            startAutoSync();
+        };
+        
+        // 监听所有输入元素的变化
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', function() {
+                saveAnswersToCache();
+                highlightSelectedOption(this);
+            });
+            
+            // 填空题实时保存
+            if (input.type === 'text') {
+                input.addEventListener('input', function() {
+                    saveAnswersToCache();
+                });
+            }
+        });
+        
+        // 高亮选中的选项
+        function highlightSelectedOption(input) {
+            if (input.type === 'radio') {
+                const name = input.name;
+                document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+                    radio.parentElement.classList.remove('selected');
+                });
+                input.parentElement.classList.add('selected');
+            }
+        }
+        
+        // 保存答案到本地缓存
+        function saveAnswersToCache() {
+            const answers = collectAnswers();
+            const cacheKey = `exam_${EXAM_ID}_answers`;
+            localStorage.setItem(cacheKey, JSON.stringify(answers));
+            console.log('答案已保存到本地缓存:', answers);
+        }
+        
+        // 从本地缓存恢复答案
+        function restoreAnswersFromCache() {
+            const cacheKey = `exam_${EXAM_ID}_answers`;
+            const cachedData = localStorage.getItem(cacheKey);
+            
+            if (cachedData) {
+                try {
+                    const answers = JSON.parse(cachedData);
+                    
+                    for (const [questionId, answer] of Object.entries(answers)) {
+                        const input = document.querySelector(`input[data-question-id="${questionId}"]`);
+                        
+                        if (input) {
+                            if (input.type === 'radio') {
+                                const radio = document.querySelector(`input[name="question_${questionId}"][value="${answer}"]`);
+                                if (radio) {
+                                    radio.checked = true;
+                                    highlightSelectedOption(radio);
+                                }
+                            } else {
+                                input.value = answer;
+                            }
+                        }
+                    }
+                    
+                    console.log('已从缓存恢复答案:', answers);
+                } catch (error) {
+                    console.error('恢复缓存数据失败:', error);
+                    localStorage.removeItem(cacheKey);
+                }
+            }
+        }
+        
+        // 收集所有答案
+        function collectAnswers() {
+            const answers = {};
+            
+            document.querySelectorAll('input[data-question-id]').forEach(input => {
+                const questionId = input.getAttribute('data-question-id');
+                
+                if (input.type === 'radio') {
+                    if (input.checked) {
+                        answers[questionId] = input.value;
+                    }
+                } else {
+                    answers[questionId] = input.value.trim();
+                }
+            });
+            
+            return answers;
+        }
+        
+        // 自动同步到服务器
+        function startAutoSync() {
+            setInterval(async function() {
+                await syncAnswersToServer();
+            }, SYNC_INTERVAL);
+        }
+        
+        // 同步答案到服务器
+        async function syncAnswersToServer() {
+            const answers = collectAnswers();
+            
+            try {
+                const response = await fetch(`/exams/${EXAM_ID}/save-answer/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ answers: answers })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    lastSyncTime = new Date();
+                    syncRetryCount = 0;
+                    showSaveStatus();
+                    console.log('答案同步成功:', result.saved_at);
+                } else {
+                    console.error('答案同步失败:', result.error);
+                    handleSyncFailure();
+                }
+            } catch (error) {
+                console.error('网络错误，同步失败:', error);
+                handleSyncFailure();
+            }
+        }
+        
+        // 处理同步失败
+        function handleSyncFailure() {
+            syncRetryCount++;
+            
+            if (syncRetryCount < MAX_SYNC_RETRIES) {
+                console.log(`将在 10 秒后重试 (${syncRetryCount}/${MAX_SYNC_RETRIES})`);
+                setTimeout(syncAnswersToServer, 10000);
+            } else {
+                console.error('达到最大重试次数，同步失败');
+            }
+        }
+        
+        // 显示保存状态
+        function showSaveStatus() {
+            const statusEl = document.getElementById('saveStatus');
+            statusEl.style.display = 'block';
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 2000);
+        }
+        
+        // 倒计时
+        let warningShown = false;
+        
+        function startTimer() {
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        }
+        
+        function updateTimer() {
+            const now = new Date().getTime();
+            const distance = EXAM_END_TIME - now;
+            
+            if (distance < 0) {
+                document.getElementById('remainingTime').innerHTML = '考试已结束';
+                // 自动提交
+                if (!isSubmitting) {
+                    autoSubmitExam();
+                }
+                return;
+            }
+            
+            const hours = Math.floor(distance / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            document.getElementById('remainingTime').innerHTML = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            // 更新进度条
+            const totalTime = EXAM_END_TIME - EXAM_START_TIME;
+            const progress = (distance / totalTime) * 100;
+            document.getElementById('timerBar').style.width = progress + '%';
+            
+            // 时间不足警告（最后 5 分钟）
+            if (distance < 5 * 60 * 1000 && !warningShown) {
+                showTimeWarning();
+                warningShown = true;
+            }
+        }
+        
+        // 显示时间警告
+        function showTimeWarning() {
+            const warning = document.createElement('div');
+            warning.className = 'alert alert-warning alert-dismissible fade show';
+            warning.style.position = 'fixed';
+            warning.style.top = '70px';
+            warning.style.left = '50%';
+            warning.style.transform = 'translateX(-50%)';
+            warning.style.zIndex = '9999';
+            warning.style.minWidth = '300px';
+            warning.innerHTML = `
+                <strong>⏰ 警告：</strong>考试剩余时间不足 5 分钟！
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(warning);
+            
+            // 播放提示音（如果浏览器支持）
+            try {
+                const audio = new AudioContext();
+                const oscillator = audio.createOscillator();
+                const gainNode = audio.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audio.destination);
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.3;
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 200);
+            } catch (e) {
+                console.log('浏览器不支持音频播放');
+            }
+        }
+        
+        // 自动提交考试
+        async function autoSubmitExam() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+            
+            const answers = collectAnswers();
+            
+            try {
+                const response = await fetch(`/exams/${EXAM_ID}/submit/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ answers: answers })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    localStorage.removeItem(`exam_${EXAM_ID}_answers`);
+                    alert('⏰ 考试时间已到，已自动提交试卷！');
+                    window.location.href = '/exams/';
+                } else {
+                    console.error('自动提交失败:', result.error);
+                }
+            } catch (error) {
+                console.error('自动提交失败:', error);
+            }
+        }
+        
+        // 提交试卷
+        document.getElementById('submitBtn').addEventListener('click', async function() {
+            if (isSubmitting) {
+                return; // 防止重复提交
+            }
+            
+            if (!confirm('确定要提交试卷吗？提交后无法修改答案。')) {
+                return;
+            }
+            
+            isSubmitting = true;
+            this.disabled = true;
+            this.innerHTML = '提交中...';
+            
+            const answers = collectAnswers();
+            
+            try {
+                const response = await fetch(`/exams/${EXAM_ID}/submit/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ answers: answers })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    localStorage.removeItem(`exam_${EXAM_ID}_answers`);
+                    if (result.redirect_url) {
+                        window.location.href = result.redirect_url;
+                    } else {
+                        alert(`考试已提交！\n得分：${result.score}/${result.max_score}\n正确题数：${result.correct_count}/${result.question_count}`);
+                        window.location.href = '/exams/';
+                    }
+                } else {
+                    alert('提交失败：' + result.error);
+                    isSubmitting = false;
+                    this.disabled = false;
+                    this.innerHTML = '✅ 提交试卷';
+                }
+            } catch (error) {
+                alert('网络错误，提交失败：' + error);
+                isSubmitting = false;
+                this.disabled = false;
+                this.innerHTML = '✅ 提交试卷';
+            }
+        });
+        
+        // 离开页面警告
+        window.addEventListener('beforeunload', function(e) {
+            const answers = collectAnswers();
+            const hasAnswers = Object.keys(answers).length > 0;
+            
+            if (hasAnswers) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+    </script>
+</body>
+</html>

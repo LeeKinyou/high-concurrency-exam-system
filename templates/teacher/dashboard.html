@@ -1,0 +1,284 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}仪表盘 - 教师端 - 在线考试系统{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">仪表盘</li>
+{% endblock %}
+
+{% block active_menu %}dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📊 教师仪表盘</h1>
+    <div>
+        <span class="text-muted">{{ now|date:"Y 年 m 月 d 日 H:i" }}</span>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ stats.total_exams }}</div>
+                <div class="stat-label">考试总数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-play-circle"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ stats.ongoing_exams }}</div>
+                <div class="stat-label">进行中考试</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ stats.pending_grading }}</div>
+                <div class="stat-label">待批改试卷</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ stats.graded_records }}</div>
+                <div class="stat-label">已批改试卷</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-lightning-charge"></i> 快捷操作</span>
+            </div>
+            <div class="card-body">
+                <div class="quick-actions">
+                    <a href="{% url 'teacher:exam_create' %}" class="quick-action-btn">
+                        <i class="bi bi-plus-circle text-primary"></i>
+                        <span>创建考试</span>
+                    </a>
+                    <a href="{% url 'teacher:qrcode' %}" class="quick-action-btn">
+                        <i class="bi bi-qr-code-scan text-success"></i>
+                        <span>生成二维码</span>
+                    </a>
+                    <a href="{% url 'accounts:upload' %}" class="quick-action-btn">
+                        <i class="bi bi-file-earmark-excel text-warning"></i>
+                        <span>导入学生</span>
+                    </a>
+                    <a href="{% url 'teacher:scores' %}" class="quick-action-btn">
+                        <i class="bi bi-bar-chart-line text-info"></i>
+                        <span>查看成绩</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul"></i> 最近考试</span>
+                <a href="{% url 'teacher:exam_list' %}" class="btn btn-sm btn-outline-primary">查看全部</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_exams %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>考试名称</th>
+                                <th>开始时间</th>
+                                <th>结束时间</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exam in recent_exams %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ exam.title }}</div>
+                                    <small class="text-muted">{{ exam.description|truncatechars:30 }}</small>
+                                </td>
+                                <td>{{ exam.start_time|date:"m-d H:i" }}</td>
+                                <td>{{ exam.end_time|date:"m-d H:i" }}</td>
+                                <td>
+                                    {% if exam.is_ongoing %}
+                                        <span class="badge-status badge-ongoing">🟢 进行中</span>
+                                    {% elif exam.is_not_started %}
+                                        <span class="badge-status badge-not-started">🔵 未开始</span>
+                                    {% else %}
+                                        <span class="badge-status badge-over">🔴 已结束</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="action-btns">
+                                        <a href="{% url 'teacher:exam_edit' exam.id %}" class="btn btn-outline-primary btn-sm" title="编辑">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        {% if exam.is_ongoing or exam.is_not_started %}
+                                        <a href="{% url 'teacher:qrcode' %}?exam_id={{ exam.id }}" class="btn btn-outline-success btn-sm" title="二维码">
+                                            <i class="bi bi-qr-code"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p class="mb-0">暂无考试数据</p>
+                    <a href="{% url 'teacher:exam_create' %}" class="btn btn-primary btn-sm mt-3">
+                        <i class="bi bi-plus-circle"></i> 创建第一个考试
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <span><i class="bi bi-bar-chart-line"></i> 成绩统计</span>
+            </div>
+            <div class="card-body">
+                {% if score_stats.has_data %}
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3">平均分趋势</h6>
+                    <div class="text-center py-4">
+                        <h2 class="text-primary mb-0">{{ score_stats.average_score|floatformat:1 }}</h2>
+                        <small class="text-muted">最近考试平均分</small>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3">最高分</h6>
+                    <div class="text-center py-3">
+                        <h3 class="text-success mb-0">{{ score_stats.highest_score }}</h3>
+                        <small class="text-muted">/{{ score_stats.max_possible_score }}分</small>
+                    </div>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-3">参考人数</h6>
+                    <div class="text-center py-3">
+                        <h3 class="text-info mb-0">{{ score_stats.total_students }}</h3>
+                        <small class="text-muted">人次</small>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state py-5">
+                    <i class="bi bi-bar-chart-line" style="font-size: 3rem;"></i>
+                    <p class="mb-0">暂无成绩数据</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <span><i class="bi bi-clock"></i> 考试倒计时</span>
+            </div>
+            <div class="card-body">
+                {% if upcoming_exams %}
+                <div id="countdownContainer">
+                    {% for exam in upcoming_exams %}
+                    <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                        <div class="fw-semibold mb-1">{{ exam.title }}</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                {% if exam.is_not_started %}
+                                    距离开始：
+                                {% else %}
+                                    距离结束：
+                                {% endif %}
+                            </small>
+                            <span class="badge bg-primary countdown-timer" 
+                                  data-target="{{ exam.end_time|date:'c' }}"
+                                  data-type="{% if exam.is_not_started %}start{% else %}end{% endif %}">
+                                计算中...
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state py-4">
+                    <i class="bi bi-calendar-event" style="font-size: 2.5rem;"></i>
+                    <p class="mb-0 small">暂无即将开始/进行中的考试</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateCountdowns() {
+    document.querySelectorAll('.countdown-timer').forEach(function(timer) {
+        const target = new Date(timer.dataset.target);
+        const now = new Date();
+        const diff = target - now;
+        
+        if (diff <= 0) {
+            timer.textContent = '已开始/已结束';
+            timer.className = 'badge bg-secondary';
+            return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        let timeStr = '';
+        if (days > 0) {
+            timeStr += `${days}天 `;
+        }
+        timeStr += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        timer.textContent = timeStr;
+        
+        if (timer.dataset.type === 'start') {
+            timer.className = 'badge bg-warning';
+        } else {
+            if (diff < 1000 * 60 * 30) {
+                timer.className = 'badge bg-danger';
+            } else if (diff < 1000 * 60 * 60) {
+                timer.className = 'badge bg-warning';
+            } else {
+                timer.className = 'badge bg-success';
+            }
+        }
+    });
+}
+
+updateCountdowns();
+setInterval(updateCountdowns, 1000);
+</script>
+{% endblock %}

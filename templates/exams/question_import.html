@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库导入 - 在线考试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">📝 在线考试系统</a>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-item nav-link text-white">
+                    👤 {{ user.username }}
+                </span>
+                <a class="nav-link text-white" href="{% url 'exams:exam_list' %}">返回考试列表</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <h1 class="mb-4">
+            <i class="bi bi-collection"></i> 题库管理
+        </h1>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-excel"></i> Excel 批量导入</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>通过 Excel 文件批量导入题目，支持选择题和填空题。</p>
+                        <ul>
+                            <li>支持 .xlsx 和 .xls 格式</li>
+                            <li>自动识别题目类型</li>
+                            <li>支持预览和选择性导入</li>
+                            <li>提供详细的导入报告</li>
+                        </ul>
+                        <a href="{% url 'exams:excel_upload' %}" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> 开始导入
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-plus-circle"></i> 手动添加题目</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>逐个手动添加题目到题库。</p>
+                        <ul>
+                            <li>支持选择题和填空题</li>
+                            <li>可自定义分值</li>
+                            <li>即时保存</li>
+                        </ul>
+                        <a href="#" class="btn btn-success">
+                            <i class="bi bi-plus-lg"></i> 添加题目
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-question-circle"></i> Excel 格式说明</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Excel 表格格式：</h6>
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr>
+                                    <th>列 1</th>
+                                    <th>列 2</th>
+                                    <th>列 3</th>
+                                    <th>列 4</th>
+                                    <th>列 5</th>
+                                    <th>列 6</th>
+                                    <th>列 7</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>题目类型</td>
+                                    <td>题干</td>
+                                    <td>选项 A</td>
+                                    <td>选项 B</td>
+                                    <td>选项 C</td>
+                                    <td>选项 D</td>
+                                    <td>答案</td>
+                                </tr>
+                                <tr>
+                                    <td>选择题</td>
+                                    <td>1+1 等于？</td>
+                                    <td>1</td>
+                                    <td>2</td>
+                                    <td>3</td>
+                                    <td>4</td>
+                                    <td>B</td>
+                                </tr>
+                                <tr>
+                                    <td>填空题</td>
+                                    <td>地球是太阳系第____大行星</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td>四</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h6 class="mt-4">注意事项：</h6>
+                        <ul>
+                            <li><strong>题目类型：</strong>必须填写"选择题"或"填空题"</li>
+                            <li><strong>选择题：</strong>必须至少包含选项 A 和 B，答案为字母（如"A"或"AB"）</li>
+                            <li><strong>填空题：</strong>选项列可以留空，答案支持多个（用分号分隔，如"答案 1;答案 2"）</li>
+                            <li><strong>多选题：</strong>答案可以写成"AB"或"A,B"或"A B"格式</li>
+                        </ul>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-download"></i> 
+                            <strong>示例文件：</strong> <a href="#" class="alert-link">下载 Excel 模板</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

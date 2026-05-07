@@ -1,0 +1,20 @@
+# Django
+Django==4.2.11
+
+# 数据库
+mysqlclient==2.2.8
+
+# Redis
+redis==7.4.0
+
+# Excel 处理
+openpyxl==3.1.5
+
+# 二维码生成
+qrcode==8.2
+Pillow==12.1.1
+django-qrcode==0.3
+
+# 其他依赖
+PyYAML==6.0.3
+requests==2.33.1

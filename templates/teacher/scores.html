@@ -1,0 +1,398 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}成绩管理 - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">成绩管理</li>
+{% endblock %}
+
+{% block active_menu %}scores{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📊 成绩管理</h1>
+    <div class="d-flex gap-2">
+        <select class="form-select" id="examFilter" style="width: 300px;">
+            <option value="">全部考试</option>
+            {% for exam in exams %}
+            <option value="{{ exam.id }}">{{ exam.title }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-success" onclick="exportScores()">
+            <i class="bi bi-file-earmark-excel"></i> 导出 Excel
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="totalRecords">0</div>
+                <div class="stat-label">答卷总数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="avgScore">0</div>
+                <div class="stat-label">平均分</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-trophy"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="highestScore">0</div>
+                <div class="stat-label">最高分</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-people"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="passRate">0%</div>
+                <div class="stat-label">及格率</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bar-chart-line"></i> 成绩分布</span>
+            </div>
+            <div class="card-body">
+                <canvas id="scoreChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <span><i class="bi bi-pie-chart"></i> 分数段统计</span>
+            </div>
+            <div class="card-body">
+                <canvas id="pieChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span><i class="bi bi-list-ul"></i> 成绩列表</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover" id="scoresTable">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>考试名称</th>
+                        <th>学生姓名</th>
+                        <th>学号</th>
+                        <th>得分</th>
+                        <th>满分</th>
+                        <th>正确率</th>
+                        <th>提交时间</th>
+                        <th>用时</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="scoresBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">答卷详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 先定义变量
+let scoreChart = null;
+let pieChart = null;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let scoreChart = null;
+let pieChart = null;
+
+// 定义所有函数
+function loadScores(examId) {
+    // 检查 showLoading 是否已定义
+    if (typeof showLoading === 'function') {
+        showLoading();
+    }
+    
+    const url = examId 
+        ? `/teacher/api/scores/?exam_id=${examId}`
+        : '/teacher/api/scores/';
+    
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function(data) {
+            updateStats(data);
+            renderScores(data.records);
+            renderCharts(data);
+            if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
+        },
+        error: function() {
+            if (typeof showToast === 'function') {
+                showToast('加载失败', 'danger');
+            }
+            if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
+        }
+    });
+}
+
+function updateStats(data) {
+    document.getElementById('totalRecords').textContent = data.total || 0;
+    document.getElementById('avgScore').textContent = data.average || 0;
+    document.getElementById('highestScore').textContent = data.highest || 0;
+    document.getElementById('passRate').textContent = (data.pass_rate || 0) + '%';
+}
+
+function renderScores(records) {
+    let html = '';
+    
+    // 检查 records 是否为数组
+    if (!records || !Array.isArray(records)) {
+        html = '<tr><td colspan="10" class="text-center py-5 text-muted">暂无成绩数据</td></tr>';
+        document.getElementById('scoresBody').innerHTML = html;
+        return;
+    }
+    
+    records.forEach((record, index) => {
+        const percentage = ((record.score / record.max_score) * 100).toFixed(1);
+        const scoreClass = percentage >= 60 ? 'text-success' : 'text-danger';
+        
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${record.exam_title}</td>
+                <td>${record.student_name}</td>
+                <td>${record.student_id}</td>
+                <td class="${scoreClass} fw-bold">${record.score}</td>
+                <td>${record.max_score}</td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar ${percentage >= 60 ? 'bg-success' : 'bg-danger'}" 
+                             role="progressbar" style="width: ${percentage}%">
+                            ${percentage}%
+                        </div>
+                    </div>
+                </td>
+                <td>${record.submitted_at}</td>
+                <td>${record.duration}</td>
+                <td>
+                    <button onclick="viewDetail(${record.id})" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> 查看
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    if (records.length === 0) {
+        html = '<tr><td colspan="10" class="text-center py-5 text-muted">暂无成绩数据</td></tr>';
+    }
+    
+    document.getElementById('scoresBody').innerHTML = html;
+}
+
+function renderCharts(data) {
+    // 检查 Chart 是否已加载
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js 未加载，无法渲染图表');
+        return;
+    }
+    
+    const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    
+    if (scoreChart) scoreChart.destroy();
+    if (pieChart) pieChart.destroy();
+    
+    // 检查数据结构是否完整
+    if (!data || !data.score_distribution || !data.segments) {
+        console.warn('成绩分布数据不完整，无法渲染图表');
+        return;
+    }
+    
+    scoreChart = new Chart(scoreCtx, {
+        type: 'bar',
+        data: {
+            labels: data.score_distribution.labels || [],
+            datasets: [{
+                label: '人数',
+                data: data.score_distribution.counts || [],
+                backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                borderColor: 'rgba(13, 110, 253, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+    
+    pieChart = new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['优秀 (90-100)', '良好 (80-89)', '中等 (70-79)', '及格 (60-69)', '不及格 (<60)'],
+            datasets: [{
+                data: [
+                    data.segments.excellent || 0,
+                    data.segments.good || 0,
+                    data.segments.medium || 0,
+                    data.segments.pass || 0,
+                    data.segments.fail || 0
+                ],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(25, 135, 84, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(13, 202, 240, 0.8)',
+                    'rgba(220, 53, 69, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true
+        }
+    });
+}
+
+function viewDetail(recordId) {
+    if (typeof bootstrap !== 'undefined') {
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+    
+    $.ajax({
+        url: `/teacher/api/scores/${recordId}/detail/`,
+        method: 'GET',
+        success: function(data) {
+            let html = `
+                <div class="mb-4">
+                    <h6>基本信息</h6>
+                    <table class="table table-sm">
+                        <tr><td width="100">学生：</td><td>${data.student_name} (${data.student_id})</td></tr>
+                        <tr><td>考试：</td><td>${data.exam_title}</td></tr>
+                        <tr><td>得分：</td><td class="${data.score >= data.max_score * 0.6 ? 'text-success' : 'text-danger'} fw-bold">${data.score}/${data.max_score}</td></tr>
+                        <tr><td>提交时间：</td><td>${data.submitted_at}</td></tr>
+                    </table>
+                </div>
+                
+                <h6>答题详情</h6>
+                <div class="accordion" id="questionsAccordion">
+            `;
+            
+            data.questions.forEach((q, index) => {
+                const isCorrect = q.is_correct;
+                html += `
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button ${isCorrect ? '' : 'collapsed'}" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapse${index}">
+                                第${index + 1}题【${q.question_type === 'choice' ? '选择题' : '填空题'}】
+                                ${isCorrect ? '<span class="badge bg-success ms-2">正确</span>' : '<span class="badge bg-danger ms-2">错误</span>'}
+                                (${q.score}/${q.max_score}分)
+                            </button>
+                        </h2>
+                        <div id="collapse${index}" class="accordion-collapse collapse ${isCorrect ? 'show' : ''}">
+                            <div class="accordion-body">
+                                <p><strong>题干：</strong>${q.question_text}</p>
+                                <p><strong>正确答案：</strong>${q.correct_answer}</p>
+                                <p><strong>你的答案：</strong><span class="${isCorrect ? 'text-success' : 'text-danger'}">${q.student_answer || '未作答'}</span></p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            document.getElementById('detailContent').innerHTML = html;
+        },
+        error: function() {
+            document.getElementById('detailContent').innerHTML = '<div class="alert alert-danger">加载失败</div>';
+        }
+    });
+}
+
+function exportScores() {
+    const examId = document.getElementById('examFilter').value;
+    const url = examId 
+        ? `/teacher/api/scores/export/?exam_id=${examId}`
+        : '/teacher/api/scores/export/';
+    
+    window.open(url, '_blank');
+    if (typeof showToast === 'function') {
+        showToast('导出已开始', 'success');
+    }
+}
+
+// 页面加载完成后执行初始化
+$(document).ready(function() {
+    // 绑定筛选器事件
+    document.getElementById('examFilter').addEventListener('change', function() {
+        loadScores(this.value);
+    });
+    
+    // 初始加载成绩
+    loadScores();
+});
+</script>
+{% endblock %}

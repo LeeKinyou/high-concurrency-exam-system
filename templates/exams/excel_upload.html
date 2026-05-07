@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel 题目导入 - 在线考试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #0d6efd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: #f8f9fa;
+        }
+        .upload-area:hover {
+            background-color: #e9ecef;
+            border-color: #0a58ca;
+        }
+        .upload-area.dragover {
+            background-color: #cfe2ff;
+            border-color: #084298;
+        }
+        .preview-table {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .question-type-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .type-choice {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+        .type-blank {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        .error-row {
+            background-color: #f8d7da !important;
+        }
+        .loading-spinner {
+            display: none;
+        }
+        .import-progress {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">📝 在线考试系统</a>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-item nav-link text-white">
+                    👤 {{ user.username }}
+                </span>
+                <a class="nav-link text-white" href="{% url 'exams:exam_list' %}">返回考试列表</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <h1 class="mb-4">
+            <i class="bi bi-file-earmark-excel"></i> Excel 题目导入
+        </h1>
+
+        <!-- 步骤提示 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="progress" style="height: 30px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         id="step-progress" 
+                         role="progressbar" 
+                         style="width: 33%;" 
+                         aria-valuenow="33" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span id="step-text">步骤 1/3: 上传文件</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤 1: 文件上传 -->
+        <div class="card mb-4" id="upload-step">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">步骤 1: 上传 Excel 文件</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    <strong>Excel 格式说明：</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>第 1 列：题目类型（"选择题" 或 "填空题"）</li>
+                        <li>第 2 列：题干内容</li>
+                        <li>第 3-6 列：选项 A、B、C、D（仅选择题需要）</li>
+                        <li>第 7 列：正确答案（选择题支持多个答案，如"AB"；填空题支持多个答案用分号分隔）</li>
+                    </ul>
+                </div>
+                
+                <div class="upload-area" id="upload-area">
+                    <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #0d6efd;"></i>
+                    <h5 class="mt-3">点击或拖拽上传 Excel 文件</h5>
+                    <p class="text-muted">支持格式：.xlsx, .xls</p>
+                    <input type="file" id="file-input" accept=".xlsx,.xls" style="display: none;">
+                </div>
+
+                <div class="loading-spinner text-center mt-3" id="upload-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">正在解析文件...</p>
+                </div>
+
+                <div id="upload-result" class="mt-3" style="display: none;">
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>解析成功！</strong>
+                        <span id="parse-summary"></span>
+                    </div>
+                </div>
+
+                <div id="upload-error" class="mt-3" style="display: none;">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span id="error-message"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤 2: 预览和选择 -->
+        <div class="card mb-4" id="preview-step" style="display: none;">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">步骤 2: 预览和选择题目</h5>
+                <div>
+                    <button class="btn btn-light btn-sm" id="select-all">
+                        <i class="bi bi-check-all"></i> 全选
+                    </button>
+                    <button class="btn btn-light btn-sm" id="select-none">
+                        <i class="bi bi-x"></i> 取消全选
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="preview-table">
+                    <table class="table table-hover table-bordered">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 50px;">选择</th>
+                                <th style="width: 80px;">行号</th>
+                                <th style="width: 80px;">类型</th>
+                                <th>题干</th>
+                                <th>选项</th>
+                                <th style="width: 100px;">答案</th>
+                                <th style="width: 80px;">状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-body">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="parse-errors" class="mt-3" style="display: none;">
+                    <h6>解析失败的题目：</h6>
+                    <div class="alert alert-warning">
+                        <ul class="mb-0" id="error-list"></ul>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-secondary" id="back-upload">
+                        <i class="bi bi-arrow-left"></i> 重新上传
+                    </button>
+                    <button class="btn btn-primary" id="confirm-import">
+                        <i class="bi bi-download"></i> 导入选中的题目
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤 3: 导入进度 -->
+        <div class="card mb-4" id="import-step" style="display: none;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">步骤 3: 导入进度</h5>
+            </div>
+            <div class="card-body">
+                <div class="loading-spinner text-center" id="import-spinner" style="display: block;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">正在导入题目...</p>
+                </div>
+
+                <div id="import-result" style="display: none;">
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i>
+                        <strong>导入完成！</strong>
+                        <p class="mb-0 mt-2" id="import-summary"></p>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    成功导入的题目
+                                </div>
+                                <div class="card-body">
+                                    <ul id="success-list" style="max-height: 200px; overflow-y: auto;"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-danger text-white">
+                                    导入失败的题目
+                                </div>
+                                <div class="card-body">
+                                    <ul id="failure-list" style="max-height: 200px; overflow-y: auto;"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary" id="finish-import" style="display: none;">
+                    <i class="bi bi-check-lg"></i> 完成
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let parsedQuestions = [];
+        let selectedRows = new Set();
+
+        // 文件上传区域交互
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                uploadFile(e.target.files[0]);
+            }
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                uploadFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // 上传文件
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            document.getElementById('upload-spinner').style.display = 'block';
+            document.getElementById('upload-error').style.display = 'none';
+            document.getElementById('upload-result').style.display = 'none';
+
+            fetch('/exams/excel/parse/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('upload-spinner').style.display = 'none';
+                
+                if (data.success) {
+                    showPreview(data.data);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('upload-spinner').style.display = 'none';
+                showError('上传失败：' + error);
+            });
+        }
+
+        // 显示预览
+        function showPreview(parseData) {
+            parsedQuestions = parseData.questions;
+            selectedRows.clear();
+
+            document.getElementById('upload-result').style.display = 'block';
+            document.getElementById('parse-summary').textContent = 
+                `共解析 ${parseData.total_count} 道题目，成功 ${parseData.parsed_count} 道，失败 ${parseData.error_count} 道`;
+
+            document.getElementById('preview-step').style.display = 'block';
+            updateStepProgress(66, '步骤 2/3: 预览和选择');
+
+            const tbody = document.getElementById('preview-body');
+            tbody.innerHTML = '';
+
+            parseData.questions.forEach(q => {
+                const row = document.createElement('tr');
+                row.dataset.rowNumber = q.row_number;
+                
+                const typeClass = q.question_type === 'choice' ? 'type-choice' : 'type-blank';
+                const typeText = q.question_type === 'choice' ? '选择题' : '填空题';
+                
+                let optionsText = '';
+                if (q.question_type === 'choice') {
+                    const options = [];
+                    if (q.option_a) options.push(`A. ${q.option_a}`);
+                    if (q.option_b) options.push(`B. ${q.option_b}`);
+                    if (q.option_c) options.push(`C. ${q.option_c}`);
+                    if (q.option_d) options.push(`D. ${q.option_d}`);
+                    optionsText = options.join('<br>');
+                }
+
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="form-check-input question-select" 
+                               data-row="${q.row_number}" checked>
+                    </td>
+                    <td>${q.row_number}</td>
+                    <td><span class="question-type-badge ${typeClass}">${typeText}</span></td>
+                    <td>${q.question_text.substring(0, 50)}${q.question_text.length > 50 ? '...' : ''}</td>
+                    <td><small>${optionsText}</small></td>
+                    <td><strong>${q.answer}</strong></td>
+                    <td><span class="badge bg-success">正常</span></td>
+                `;
+                
+                tbody.appendChild(row);
+                selectedRows.add(q.row_number);
+            });
+
+            // 显示解析错误
+            if (parseData.errors && parseData.errors.length > 0) {
+                document.getElementById('parse-errors').style.display = 'block';
+                const errorList = document.getElementById('error-list');
+                errorList.innerHTML = '';
+                parseData.errors.forEach(err => {
+                    const li = document.createElement('li');
+                    li.textContent = `第${err.row}行：${err.error}`;
+                    errorList.appendChild(li);
+                });
+            }
+
+            // 滚动到预览区域
+            document.getElementById('preview-step').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 显示错误
+        function showError(message) {
+            document.getElementById('upload-error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        // 全选/取消全选
+        document.getElementById('select-all').addEventListener('click', () => {
+            document.querySelectorAll('.question-select').forEach(cb => {
+                cb.checked = true;
+                selectedRows.add(parseInt(cb.dataset.row));
+            });
+        });
+
+        document.getElementById('select-none').addEventListener('click', () => {
+            document.querySelectorAll('.question-select').forEach(cb => {
+                cb.checked = false;
+                selectedRows.clear();
+            });
+        });
+
+        // 选择框变化
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('question-select')) {
+                const rowNumber = parseInt(e.target.dataset.row);
+                if (e.target.checked) {
+                    selectedRows.add(rowNumber);
+                } else {
+                    selectedRows.delete(rowNumber);
+                }
+            }
+        });
+
+        // 返回上传
+        document.getElementById('back-upload').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // 确认导入
+        document.getElementById('confirm-import').addEventListener('click', () => {
+            if (selectedRows.size === 0) {
+                alert('请至少选择一道题目');
+                return;
+            }
+
+            document.getElementById('preview-step').style.display = 'none';
+            document.getElementById('import-step').style.display = 'block';
+            updateStepProgress(100, '步骤 3/3: 导入中');
+
+            fetch('/exams/excel/import/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    selected_rows: Array.from(selectedRows)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('import-spinner').style.display = 'none';
+                
+                if (data.success) {
+                    showImportResult(data.data);
+                } else {
+                    document.getElementById('import-result').style.display = 'block';
+                    document.querySelector('#import-result .alert')
+                        .className = 'alert alert-danger';
+                    document.querySelector('#import-result strong').textContent = '导入失败！';
+                    document.getElementById('import-summary').textContent = data.error;
+                }
+            })
+            .catch(error => {
+                document.getElementById('import-spinner').style.display = 'none';
+                document.getElementById('import-result').style.display = 'block';
+                document.querySelector('#import-result .alert')
+                    .className = 'alert alert-danger';
+                document.querySelector('#import-result strong').textContent = '导入失败！';
+                document.getElementById('import-summary').textContent = '网络错误：' + error;
+            });
+        });
+
+        // 显示导入结果
+        function showImportResult(importData) {
+            document.getElementById('import-result').style.display = 'block';
+            document.getElementById('import-summary').textContent = 
+                `共导入 ${importData.total_count} 道题目，成功 ${importData.imported_count} 道，失败 ${importData.failed_count} 道`;
+
+            // 成功列表
+            const successList = document.getElementById('success-list');
+            importData.imported_questions.forEach(q => {
+                const li = document.createElement('li');
+                li.textContent = `第${q.row_number}行：${q.question_text}（${q.question_type}）`;
+                successList.appendChild(li);
+            });
+
+            // 失败列表
+            const failureList = document.getElementById('failure-list');
+            importData.import_errors.forEach(err => {
+                const li = document.createElement('li');
+                li.textContent = `第${err.row_number}行：${err.error}`;
+                failureList.appendChild(li);
+            });
+
+            document.getElementById('finish-import').style.display = 'inline-block';
+        }
+
+        // 完成导入
+        document.getElementById('finish-import').addEventListener('click', () => {
+            window.location.href = '/exams/questions/'; // 跳转到题库列表
+        });
+
+        // 更新进度条
+        function updateStepProgress(percent, text) {
+            document.getElementById('step-progress').style.width = percent + '%';
+            document.getElementById('step-progress').setAttribute('aria-valuenow', percent);
+            document.getElementById('step-text').textContent = text;
+        }
+
+        // 获取 CSRF Token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>

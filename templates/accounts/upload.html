@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量导入学生账号</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+            background-color: #e9ecef;
+        }
+        .upload-icon {
+            font-size: 48px;
+            color: #0d6efd;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid #0d6efd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .template-link {
+            color: #0d6efd;
+            text-decoration: none;
+        }
+        .template-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">📤 批量导入学生账号</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="info-box">
+                            <h5>📋 使用说明</h5>
+                            <ul class="mb-0">
+                                <li>Excel 文件必须包含"<strong>学号</strong>"和"<strong>姓名</strong>"两列（第一行为表头）</li>
+                                <li>学号只能包含字母和数字</li>
+                                <li>默认密码为学号后 6 位（学号不足 6 位则为完整学号）</li>
+                                <li>已存在的学号将自动跳过</li>
+                                <li>支持批量导入 100+ 学生账号</li>
+                            </ul>
+                        </div>
+
+                        <form method="post" enctype="multipart/form-data" id="uploadForm">
+                            {% csrf_token %}
+                            
+                            <div class="upload-area mb-4" onclick="document.getElementById('excel_file').click()">
+                                <div class="upload-icon">📁</div>
+                                <h5>点击或拖拽上传 Excel 文件</h5>
+                                <p class="text-muted mb-0">支持格式：.xlsx</p>
+                                <input type="file" id="excel_file" name="excel_file" accept=".xlsx" style="display: none;" required>
+                            </div>
+
+                            <div id="fileInfo" class="mb-3" style="display: none;">
+                                <div class="alert alert-success">
+                                    <strong>已选择文件：</strong>
+                                    <span id="fileName"></span>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    🚀 开始导入
+                                </button>
+                                <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary">
+                                    ← 返回后台管理
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('excel_file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileInfo').style.display = 'block';
+            }
+        });
+
+        const uploadArea = document.querySelector('.upload-area');
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#0d6efd';
+            this.style.backgroundColor = '#e9ecef';
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#dee2e6';
+            this.style.backgroundColor = '#f8f9fa';
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#dee2e6';
+            this.style.backgroundColor = '#f8f9fa';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('excel_file').files = files;
+                document.getElementById('fileName').textContent = files[0].name;
+                document.getElementById('fileInfo').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

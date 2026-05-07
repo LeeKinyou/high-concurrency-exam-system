@@ -1,0 +1,359 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}学生管理 - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">学生管理</li>
+{% endblock %}
+
+{% block active_menu %}students{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">👥 学生管理</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'accounts:upload' %}" class="btn btn-primary">
+            <i class="bi bi-file-earmark-excel"></i> 批量导入
+        </a>
+        <button class="btn btn-outline-primary" onclick="showImportModal()">
+            <i class="bi bi-download"></i> 导入模板
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-people"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ total_students|default:0 }}</div>
+                <div class="stat-label">学生总数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-person-check"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ active_students|default:0 }}</div>
+                <div class="stat-label">活跃学生</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ total_records|default:0 }}</div>
+                <div class="stat-label">考试记录</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div>
+                <div class="stat-value">{{ recent_logins|default:0 }}</div>
+                <div class="stat-label">最近登录</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索姓名或学号...">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                    <option value="">全部状态</option>
+                    <option value="active">活跃</option>
+                    <option value="inactive">未活跃</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-primary w-100" onclick="applyFilters()">
+                    <i class="bi bi-search"></i> 筛选
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-success w-100" onclick="exportStudents()">
+                    <i class="bi bi-file-earmark-excel"></i> 导出
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if students %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>姓名</th>
+                        <th>学号</th>
+                        <th>邮箱</th>
+                        <th>考试次数</th>
+                        <th>平均分</th>
+                        <th>最近登录</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr data-status="{{ student.last_login|yesno:'active,inactive' }}">
+                        <td>{{ student.id }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ student.username }}</div>
+                        </td>
+                        <td>{{ student.student_id }}</td>
+                        <td>{% if student.email %}{{ student.email }}{% else %}{{ student.student_id }}@stu.cqupt.edu.cn{% endif %}</td>
+                        <td>{{ student.exam_count|default:0 }}</td>
+                        <td>
+                            {% if student.average_score %}
+                                <span class="{% if student.average_score >= 60 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ student.average_score|floatformat:1 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if student.last_login %}
+                                <small>{{ student.last_login|date:"m-d H:i" }}</small>
+                            {% else %}
+                                <span class="text-muted">从未</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if student.last_login %}
+                                <span class="badge-status badge-active">✓ 活跃</span>
+                            {% else %}
+                                <span class="badge-status badge-inactive">○ 未活跃</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <button onclick="resetPassword({{ student.id }}, '{{ student.username }}')" 
+                                        class="btn btn-sm btn-outline-warning" title="重置密码">
+                                    <i class="bi bi-key"></i>
+                                </button>
+                                <button onclick="viewStudent({{ student.id }})" 
+                                        class="btn btn-sm btn-outline-info" title="查看详情">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无学生数据</h5>
+            <p>点击"批量导入"上传学生名单</p>
+            <a href="{% url 'accounts:upload' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-file-earmark-excel"></i> 批量导入
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-key"></i> 重置密码</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要重置学生 <strong id="resetStudentName"></strong> 的密码吗？</p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 密码将重置为学号（不含年份前缀）
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" onclick="confirmResetPassword()">
+                    <i class="bi bi-arrow-clockwise"></i> 确认重置
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="studentDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">学生详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentDetailContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStudentId = null;
+
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    document.querySelectorAll('#studentsTable tbody tr').forEach(row => {
+        const rowStatus = row.dataset.status;
+        const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        const studentId = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+        
+        let show = true;
+        
+        if (status && rowStatus !== status) show = false;
+        if (search && !name.includes(search) && !studentId.includes(search)) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function showImportModal() {
+    const template = '学号，姓名，邮箱\nS20240001，张三，zhangsan@test.com\nS20240002，李四，lisi@test.com';
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '学生导入模板.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showToast('模板已下载', 'success');
+}
+
+function resetPassword(studentId, studentName) {
+    currentStudentId = studentId;
+    document.getElementById('resetStudentName').textContent = studentName;
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+function confirmResetPassword() {
+    showLoading();
+    
+    $.ajax({
+        url: `/teacher/students/${currentStudentId}/reset-password/`,
+        type: 'POST',
+        success: function(response) {
+            if (response.success) {
+                showToast(`密码已重置为：${response.new_password}`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+            } else {
+                showToast('重置失败：' + response.error, 'danger');
+            }
+            hideLoading();
+        },
+        error: function() {
+            showToast('重置失败，请重试', 'danger');
+            hideLoading();
+        }
+    });
+}
+
+function viewStudent(studentId) {
+    showLoading();
+    new bootstrap.Modal(document.getElementById('studentDetailModal')).show();
+    
+    $.ajax({
+        url: `/teacher/students/${studentId}/`,
+        method: 'GET',
+        success: function(data) {
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>基本信息</h6>
+                        <table class="table table-sm">
+                            <tr><td width="100">姓名：</td><td>${data.username}</td></tr>
+                            <tr><td>学号：</td><td>${data.student_id}</td></tr>
+                            <tr><td>邮箱：</td><td>${data.email || '-'}</td></tr>
+                            <tr><td>注册时间：</td><td>${data.date_joined}</td></tr>
+                            <tr><td>最近登录：</td><td>${data.last_login || '从未'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>考试统计</h6>
+                        <table class="table table-sm">
+                            <tr><td>考试次数：</td><td>${data.exam_count}</td></tr>
+                            <tr><td>平均分：</td><td class="${data.average_score >= 60 ? 'text-success' : 'text-danger'}">${data.average_score || 0}</td></tr>
+                            <tr><td>最高分：</td><td>${data.highest_score || 0}</td></tr>
+                            <tr><td>最低分：</td><td>${data.lowest_score || 0}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <h6 class="mt-4">考试记录</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>考试</th>
+                                <th>得分</th>
+                                <th>提交时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            if (data.records && data.records.length > 0) {
+                data.records.forEach(record => {
+                    html += `
+                        <tr>
+                            <td>${record.exam_title}</td>
+                            <td class="${record.score >= record.max_score * 0.6 ? 'text-success' : 'text-danger'}">${record.score}</td>
+                            <td>${record.submitted_at}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html += '<tr><td colspan="3" class="text-center text-muted">暂无考试记录</td></tr>';
+            }
+            
+            html += '</tbody></table></div>';
+            document.getElementById('studentDetailContent').innerHTML = html;
+            hideLoading();
+        },
+        error: function() {
+            document.getElementById('studentDetailContent').innerHTML = '<div class="alert alert-danger">加载失败</div>';
+            hideLoading();
+        }
+    });
+}
+
+function exportStudents() {
+    window.open('/teacher/students/export/', '_blank');
+    showToast('导出已开始', 'success');
+}
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') applyFilters();
+});
+</script>
+{% endblock %}

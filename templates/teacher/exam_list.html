@@ -1,0 +1,237 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}考试管理 - 教师端 - 在线考试系统{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">考试管理</li>
+{% endblock %}
+
+{% block active_menu %}exams{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📝 考试管理</h1>
+    <a href="{% url 'teacher:exam_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> 创建考试
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索考试名称...">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                    <option value="">全部状态</option>
+                    <option value="ongoing">进行中</option>
+                    <option value="not_started">未开始</option>
+                    <option value="over">已结束</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="activeFilter">
+                    <option value="">全部</option>
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100" onclick="applyFilters()">
+                    <i class="bi bi-search"></i> 筛选
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if exams %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="examTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>考试名称</th>
+                        <th>描述</th>
+                        <th>开始时间</th>
+                        <th>结束时间</th>
+                        <th>满分</th>
+                        <th>状态</th>
+                        <th>启用</th>
+                        <th>题目数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                    <tr data-status="{% if exam.is_ongoing %}ongoing{% elif exam.is_not_started %}not_started{% else %}over{% endif %}" 
+                        data-active="{{ exam.is_active|yesno:'1,0' }}">
+                        <td>{{ exam.id }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ exam.title }}</div>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ exam.description|truncatechars:40|default:"-" }}</small>
+                        </td>
+                        <td>{{ exam.start_time|date:"Y-m-d H:i" }}</td>
+                        <td>{{ exam.end_time|date:"Y-m-d H:i" }}</td>
+                        <td>{{ exam.max_score }}分</td>
+                        <td>
+                            {% if exam.is_ongoing %}
+                                <span class="badge-status badge-ongoing">🟢 进行中</span>
+                            {% elif exam.is_not_started %}
+                                <span class="badge-status badge-not-started">🔵 未开始</span>
+                            {% else %}
+                                <span class="badge-status badge-over">🔴 已结束</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if exam.is_active %}
+                                <span class="badge-status badge-active">✓ 启用</span>
+                            {% else %}
+                                <span class="badge-status badge-inactive">✗ 禁用</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ exam.questions_count|default:0 }}</td>
+                        <td>
+                            <div class="action-btns">
+                                <a href="{% url 'teacher:exam_edit' exam.id %}" class="btn btn-outline-primary btn-sm" title="编辑">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'teacher:exam_questions' exam.id %}" class="btn btn-outline-success btn-sm" title="题目管理">
+                                    <i class="bi bi-list-task"></i>
+                                </a>
+                                <a href="{% url 'teacher:exam_records' exam.id %}" class="btn btn-outline-info btn-sm" title="成绩列表">
+                                    <i class="bi bi-bar-chart-line"></i>
+                                </a>
+                                <a href="{% url 'teacher:qrcode' %}?exam_id={{ exam.id }}" class="btn btn-outline-secondary btn-sm" title="二维码">
+                                    <i class="bi bi-qr-code"></i>
+                                </a>
+                                <button onclick="deleteExam({{ exam.id }}, '{{ exam.title }}')" class="btn btn-outline-danger btn-sm" title="删除">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无考试数据</h5>
+            <p>点击"创建考试"开始您的第一次考试</p>
+            <a href="{% url 'teacher:exam_create' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-plus-circle"></i> 创建考试
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="examModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="examForm" method="post" action="{% url 'teacher:exam_create' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="examModalLabel">创建考试</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label required-field">考试名称</label>
+                            <input type="text" class="form-control" name="title" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">考试描述</label>
+                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required-field">开始时间</label>
+                            <input type="datetime-local" class="form-control" name="start_time" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required-field">结束时间</label>
+                            <input type="datetime-local" class="form-control" name="end_time" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required-field">满分</label>
+                            <input type="number" class="form-control" name="max_score" value="100" min="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">是否启用</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_active" checked>
+                                <label class="form-check-label">启用此考试</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> 创建考试
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const active = document.getElementById('activeFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    document.querySelectorAll('#examTable tbody tr').forEach(row => {
+        const rowStatus = row.dataset.status;
+        const rowActive = row.dataset.active;
+        const title = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        
+        let show = true;
+        
+        if (status && rowStatus !== status) show = false;
+        if (active && rowActive !== active) show = false;
+        if (search && !title.includes(search)) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function deleteExam(examId, examTitle) {
+    confirmAction(`确定要删除考试"${examTitle}"吗？此操作不可恢复！`, function() {
+        showLoading();
+        $.ajax({
+            url: `/teacher/exams/${examId}/delete/`,
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    showToast('考试已删除', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('删除失败：' + response.error, 'danger');
+                    hideLoading();
+                }
+            },
+            error: function(xhr) {
+                showToast('删除失败，请重试', 'danger');
+                hideLoading();
+            }
+        });
+    });
+}
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') applyFilters();
+});
+</script>
+{% endblock %}

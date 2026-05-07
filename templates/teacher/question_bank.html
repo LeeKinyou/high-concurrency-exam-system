@@ -1,0 +1,679 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}题库管理 - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">题库管理</li>
+{% endblock %}
+
+{% block active_menu %}questions{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📚 题库管理</h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="showAddQuestionModal()">
+            <i class="bi bi-plus-circle"></i> 新建题目
+        </button>
+        <button class="btn btn-primary" onclick="showImportModal()">
+            <i class="bi bi-file-earmark-excel"></i> 批量导入
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ total_questions|default:0 }}</h2>
+                <small>题目总数</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ choice_count|default:0 }}</h2>
+                <small>选择题</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ blank_count|default:0 }}</h2>
+                <small>填空题</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h2 class="mb-0">{{ exam_count|default:0 }}</h2>
+                <small>关联考试</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索题目内容...">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="typeFilter">
+                    <option value="">全部题型</option>
+                    <option value="choice">选择题</option>
+                    <option value="blank">填空题</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100" onclick="searchQuestions()">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-success w-100" onclick="showSelectedQuestions()">
+                    <i class="bi bi-check-circle"></i> 已选 (<span id="selectedCount">0</span>)
+                </button>
+            </div>
+            <div class="col-md-3">
+                <div class="btn-group w-100">
+                    <button class="btn btn-outline-secondary" onclick="selectAll()">
+                        <i class="bi bi-check-all"></i> 全选
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="clearSelection()">
+                        <i class="bi bi-x-circle"></i> 清空
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if questions %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="questionsTable">
+                <thead>
+                    <tr>
+                        <th width="50">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th width="80">题型</th>
+                        <th>题干</th>
+                        <th width="150">选项</th>
+                        <th width="80">答案</th>
+                        <th width="60">分值</th>
+                        <th width="150">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="questionsBody">
+                    {% for question in questions %}
+                    <tr data-id="{{ question.id }}" data-type="{{ question.question_type }}">
+                        <td>
+                            <input type="checkbox" class="question-checkbox" value="{{ question.id }}" onchange="updateSelectedCount()">
+                        </td>
+                        <td>
+                            {% if question.question_type == 'choice' %}
+                                <span class="badge bg-primary">选择题</span>
+                            {% else %}
+                                <span class="badge bg-info">填空题</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 400px;" title="{{ question.question_text }}">
+                                {{ question.question_text|truncatechars:50 }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if question.question_type == 'choice' %}
+                                <small class="text-muted">A/B/C/D</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <code>{{ question.answer }}</code>
+                        </td>
+                        <td>{{ question.score }}分</td>
+                        <td>
+                            <div class="action-btns">
+                                <button onclick="viewQuestion({{ question.id }})" class="btn btn-sm btn-outline-info" title="查看">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button onclick="editQuestion({{ question.id }})" class="btn btn-sm btn-outline-primary" title="编辑">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button onclick="deleteQuestion({{ question.id }})" class="btn btn-sm btn-outline-danger" title="删除">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h5>暂无题目</h5>
+            <p>点击"新建题目"或"批量导入"添加题目</p>
+            <div class="mt-3">
+                <button class="btn btn-primary me-2" onclick="showAddQuestionModal()">
+                    <i class="bi bi-plus-circle"></i> 新建题目
+                </button>
+                <button class="btn btn-success" onclick="showImportModal()">
+                    <i class="bi bi-file-earmark-excel"></i> 批量导入
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="questionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="questionForm">
+                {% csrf_token %}
+                <input type="hidden" name="question_id" id="questionId">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="questionModalLabel">题目详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label required-field">题型</label>
+                            <select class="form-select" name="question_type" id="questionType" required onchange="toggleOptions()">
+                                <option value="choice">选择题</option>
+                                <option value="blank">填空题</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label class="form-label required-field">题干</label>
+                            <textarea class="form-control" name="question_text" id="questionText" rows="4" required></textarea>
+                        </div>
+                        
+                        <div class="col-md-6" id="optionA">
+                            <label class="form-label">选项 A</label>
+                            <input type="text" class="form-control" name="option_a" maxlength="200">
+                        </div>
+                        <div class="col-md-6" id="optionB">
+                            <label class="form-label">选项 B</label>
+                            <input type="text" class="form-control" name="option_b" maxlength="200">
+                        </div>
+                        <div class="col-md-6" id="optionC">
+                            <label class="form-label">选项 C</label>
+                            <input type="text" class="form-control" name="option_c" maxlength="200">
+                        </div>
+                        <div class="col-md-6" id="optionD">
+                            <label class="form-label">选项 D</label>
+                            <input type="text" class="form-control" name="option_d" maxlength="200">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label required-field">正确答案</label>
+                            <input type="text" class="form-control" name="answer" id="answer" required>
+                            <small class="text-muted" id="answerHelp">选择题请输入字母（如：A），填空题直接输入答案</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label required-field">分值</label>
+                            <input type="number" class="form-control" name="score" id="score" value="5" min="1" max="100" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> 保存题目
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-excel"></i> 批量导入题目</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> 导入说明：</h6>
+                    <ul class="mb-0">
+                        <li>支持 Excel 格式（.xlsx, .xls）</li>
+                        <li>必须包含列：题型、题干、答案、分值</li>
+                        <li>选择题需包含选项 A、B、C、D</li>
+                        <li>题型：choice（选择题）、blank（填空题）</li>
+                    </ul>
+                </div>
+                
+                <form id="importForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label required-field">选择文件</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">导入到考试（可选）</label>
+                        <select class="form-select" name="exam_id">
+                            <option value="">仅导入题库</option>
+                            {% for exam in exams %}
+                            <option value="{{ exam.id }}">{{ exam.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">如选择，导入的题目将自动添加到该考试</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="uploadImportFile()">
+                    <i class="bi bi-upload"></i> 开始导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="viewQuestionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">题目详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewQuestionContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="selectedQuestionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">已选题目 (<span id="modalSelectedCount">0</span>)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">添加到考试</label>
+                    <select class="form-select" id="targetExamSelect">
+                        <option value="">-- 选择考试 --</option>
+                        {% for exam in exams %}
+                        <option value="{{ exam.id }}">{{ exam.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="selectedQuestionsList">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="addSelectedToExam()">
+                    <i class="bi bi-plus-circle"></i> 添加到考试
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+let selectedQuestions = new Set();
+
+// 导入相关函数必须提前定义
+function showImportModal() {
+    new bootstrap.Modal(document.getElementById('importModal')).show();
+}
+
+function uploadImportFile() {
+    const form = document.getElementById('importForm');
+    const formData = new FormData(form);
+    
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput.files[0]) {
+        showToast('请选择文件', 'warning');
+        return;
+    }
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/teacher/api/questions/import/',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(data) {
+            if (data.success) {
+                showToast(`成功导入 ${data.imported_count} 道题目，失败 ${data.failed_count} 道`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast('导入失败：' + data.error, 'danger');
+                hideLoading();
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = '导入失败，请重试';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            showToast(errorMsg, 'danger');
+            hideLoading();
+        }
+    });
+}
+
+function toggleOptions() {
+    const type = document.getElementById('questionType').value;
+    const options = ['optionA', 'optionB', 'optionC', 'optionD'];
+    
+    if (type === 'choice') {
+        options.forEach(id => document.getElementById(id).style.display = 'block');
+        document.getElementById('answerHelp').textContent = '选择题请输入字母（如：A）';
+    } else {
+        options.forEach(id => document.getElementById(id).style.display = 'none');
+        document.getElementById('answerHelp').textContent = '填空题直接输入答案';
+    }
+}
+
+function showAddQuestionModal() {
+    document.getElementById('questionModalLabel').textContent = '新建题目';
+    document.getElementById('questionForm').reset();
+    document.getElementById('questionId').value = '';
+    document.getElementById('score').value = '5';
+    toggleOptions();
+    new bootstrap.Modal(document.getElementById('questionModal')).show();
+}
+
+function searchQuestions() {
+    const keyword = document.getElementById('searchInput').value.toLowerCase();
+    const type = document.getElementById('typeFilter').value;
+    
+    document.querySelectorAll('#questionsBody tr').forEach(row => {
+        const text = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+        const rowType = row.dataset.type;
+        
+        let show = true;
+        if (keyword && !text.includes(keyword)) show = false;
+        if (type && rowType !== type) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedCount();
+}
+
+function selectAll() {
+    document.getElementById('selectAllCheckbox').checked = true;
+    toggleSelectAll(document.getElementById('selectAllCheckbox'));
+}
+
+function clearSelection() {
+    document.getElementById('selectAllCheckbox').checked = false;
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    selectedQuestions.clear();
+    document.querySelectorAll('.question-checkbox:checked').forEach(cb => {
+        selectedQuestions.add(parseInt(cb.value));
+    });
+    document.getElementById('selectedCount').textContent = selectedQuestions.size;
+}
+
+function showSelectedQuestions() {
+    if (selectedQuestions.size === 0) {
+        showToast('请先选择题目', 'warning');
+        return;
+    }
+    
+    document.getElementById('modalSelectedCount').textContent = selectedQuestions.size;
+    
+    const list = document.getElementById('selectedQuestionsList');
+    list.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>';
+    
+    new bootstrap.Modal(document.getElementById('selectedQuestionsModal')).show();
+    
+    $.ajax({
+        url: '/teacher/api/questions/batch/',
+        method: 'POST',
+        data: JSON.stringify({
+            question_ids: Array.from(selectedQuestions)
+        }),
+        contentType: 'application/json',
+        success: function(data) {
+            if (data.success) {
+                let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>题型</th><th>题干</th><th>答案</th><th>分值</th></tr></thead><tbody>';
+                data.questions.forEach(q => {
+                    html += `<tr>
+                        <td>${q.question_type === 'choice' ? '选择题' : '填空题'}</td>
+                        <td>${q.question_text.substring(0, 50)}...</td>
+                        <td><code>${q.answer}</code></td>
+                        <td>${q.score}分</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                list.innerHTML = html;
+            }
+        }
+    });
+}
+
+function addSelectedToExam() {
+    const examId = document.getElementById('targetExamSelect').value;
+    
+    if (!examId) {
+        showToast('请选择考试', 'warning');
+        return;
+    }
+    
+    if (selectedQuestions.size === 0) {
+        showToast('请先选择题目', 'warning');
+        return;
+    }
+    
+    showLoading();
+    
+    $.ajax({
+        url: `/teacher/exams/${examId}/questions/batch-add/`,
+        method: 'POST',
+        data: JSON.stringify({
+            question_ids: Array.from(selectedQuestions)
+        }),
+        contentType: 'application/json',
+        success: function(data) {
+            if (data.success) {
+                showToast(`成功添加 ${data.added_count} 道题目`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('selectedQuestionsModal')).hide();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('添加失败：' + data.error, 'danger');
+            }
+            hideLoading();
+        },
+        error: function() {
+            showToast('添加失败，请重试', 'danger');
+            hideLoading();
+        }
+    });
+}
+
+function viewQuestion(questionId) {
+    showLoading();
+    
+    $.ajax({
+        url: `/teacher/api/questions/${questionId}/`,
+        method: 'GET',
+        success: function(data) {
+            if (data.success) {
+                const q = data.question;
+                let html = `
+                    <table class="table">
+                        <tr><td width="100">题型：</td><td>${q.question_type === 'choice' ? '选择题' : '填空题'}</td></tr>
+                        <tr><td>题干：</td><td>${q.question_text}</td></tr>
+                `;
+                
+                if (q.question_type === 'choice') {
+                    html += `
+                        <tr><td>选项：</td><td>
+                            <strong>A:</strong> ${q.option_a}<br>
+                            <strong>B:</strong> ${q.option_b}<br>
+                            <strong>C:</strong> ${q.option_c}<br>
+                            <strong>D:</strong> ${q.option_d}
+                        </td></tr>
+                    `;
+                }
+                
+                html += `
+                    <tr><td>答案：</td><td><code>${q.answer}</code></td></tr>
+                    <tr><td>分值：</td><td>${q.score}分</td></tr>
+                    </table>
+                `;
+                
+                document.getElementById('viewQuestionContent').innerHTML = html;
+                new bootstrap.Modal(document.getElementById('viewQuestionModal')).show();
+            }
+            hideLoading();
+        },
+        error: function() {
+            showToast('加载失败', 'danger');
+            hideLoading();
+        }
+    });
+}
+
+function editQuestion(questionId) {
+    showLoading();
+    
+    $.ajax({
+        url: `/teacher/api/questions/${questionId}/`,
+        method: 'GET',
+        success: function(data) {
+            if (data.success) {
+                const q = data.question;
+                document.getElementById('questionModalLabel').textContent = '编辑题目';
+                document.getElementById('questionId').value = q.id;
+                document.getElementById('questionType').value = q.question_type;
+                document.getElementById('questionText').value = q.question_text;
+                document.getElementById('optionA').querySelector('input').value = q.option_a || '';
+                document.getElementById('optionB').querySelector('input').value = q.option_b || '';
+                document.getElementById('optionC').querySelector('input').value = q.option_c || '';
+                document.getElementById('optionD').querySelector('input').value = q.option_d || '';
+                document.getElementById('answer').value = q.answer;
+                document.getElementById('score').value = q.score;
+                
+                toggleOptions();
+                new bootstrap.Modal(document.getElementById('questionModal')).show();
+            }
+            hideLoading();
+        },
+        error: function() {
+            showToast('加载失败', 'danger');
+            hideLoading();
+        }
+    });
+}
+
+function deleteQuestion(questionId) {
+    confirmAction('确定要删除这道题目吗？删除后无法恢复！', function() {
+        showLoading();
+        $.ajax({
+            url: `/teacher/api/questions/${questionId}/delete/`,
+            method: 'POST',
+            success: function(data) {
+                if (data.success) {
+                    showToast('题目已删除', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('删除失败：' + data.error, 'danger');
+                    hideLoading();
+                }
+            },
+            error: function() {
+                showToast('删除失败，请重试', 'danger');
+                hideLoading();
+            }
+        });
+    });
+}
+
+document.getElementById('questionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    if (!data.question_type) {
+        showToast('请选择题型', 'warning');
+        return;
+    }
+    
+    if (!data.question_text || data.question_text.trim() === '') {
+        showToast('请输入题干内容', 'warning');
+        return;
+    }
+    
+    if (!data.answer || data.answer.trim() === '') {
+        showToast('请输入正确答案', 'warning');
+        return;
+    }
+    
+    showLoading();
+    
+    const url = data.question_id 
+        ? `/teacher/api/questions/${data.question_id}/update/`
+        : '/teacher/api/questions/create/';
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        success: function(response) {
+            if (response.success) {
+                showToast(data.question_id ? '题目已更新' : '题目已创建', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('保存失败：' + response.error, 'danger');
+                hideLoading();
+            }
+        },
+        error: function(xhr) {
+            showToast('保存失败，请重试', 'danger');
+            hideLoading();
+        }
+    });
+});
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') searchQuestions();
+});
+
+toggleOptions();
+{% endblock %}

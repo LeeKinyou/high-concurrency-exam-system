@@ -1,0 +1,199 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}{% if form_type == 'create' %}创建考试{% else %}编辑考试{% endif %} - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'teacher:exam_list' %}">考试管理</a></li>
+<li class="breadcrumb-item active">{% if form_type == 'create' %}创建考试{% else %}编辑考试{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{% if form_type == 'create' %}➕ 创建考试{% else %}✏️ 编辑考试{% endif %}</h1>
+    <a href="{% url 'teacher:exam_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-file-earmark-text"></i> 考试信息
+            </div>
+            <div class="card-body">
+                <form method="post" id="examForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label required-field">考试名称</label>
+                        <input type="text" class="form-control" name="title" value="{{ exam.title|default:'' }}" required maxlength="100">
+                        <small class="text-muted">最多 100 个字符</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">考试描述</label>
+                        <textarea class="form-control" name="description" rows="4">{{ exam.description|default:'' }}</textarea>
+                        <small class="text-muted">可输入考试说明、注意事项等</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required-field">开始时间</label>
+                            <input type="datetime-local" class="form-control" name="start_time" 
+                                   value="{{ exam.start_time|date:'Y-m-d\TH:i' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required-field">结束时间</label>
+                            <input type="datetime-local" class="form-control" name="end_time" 
+                                   value="{{ exam.end_time|date:'Y-m-d\TH:i' }}" required>
+                            <small class="text-muted">必须晚于开始时间</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required-field">满分</label>
+                            <input type="number" class="form-control" name="max_score" 
+                                   value="{{ exam.max_score|default:100 }}" min="1" max="999" required>
+                            <small class="text-muted">1-999 之间的整数</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">启用状态</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_active" 
+                                       id="is_active" {% if exam.is_active|default:True %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    {% if exam.is_active|default:True %}已启用{% else %}已禁用{% endif %}
+                                </label>
+                            </div>
+                            <small class="text-muted">禁用的考试学生不可见</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> {% if form_type == 'create' %}创建考试{% else %}保存修改{% endif %}
+                        </button>
+                        <a href="{% url 'teacher:exam_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> 取消
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> 提示信息
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    <h6><i class="bi bi-lightbulb"></i> 考试设置建议：</h6>
+                    <ul class="mb-0 mt-2">
+                        <li>考试时长建议 60-120 分钟</li>
+                        <li>提前 5-10 分钟设置开始时间</li>
+                        <li>确保结束时间合理</li>
+                        <li>满分应与题目总分一致</li>
+                        <li>创建后可在题目管理中添加题目</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        {% if exam %}
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-speedometer2"></i> 考试统计
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted">题目数量</small>
+                    <div class="h4 mb-0">{{ exam.questions_count|default:0 }}</div>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">参加人数</small>
+                    <div class="h4 mb-0">{{ exam.student_count|default:0 }}</div>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">已交卷数</small>
+                    <div class="h4 mb-0">{{ exam.submitted_count|default:0 }}</div>
+                </div>
+                <div>
+                    <small class="text-muted">状态</small>
+                    <div class="mt-1">
+                        {% if exam.is_ongoing %}
+                            <span class="badge-status badge-ongoing">🟢 进行中</span>
+                        {% elif exam.is_not_started %}
+                            <span class="badge-status badge-not-started">🔵 未开始</span>
+                        {% else %}
+                            <span class="badge-status badge-over">🔴 已结束</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="timeValidationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> 时间验证失败</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>结束时间必须晚于开始时间！</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">确定</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('examForm').addEventListener('submit', function(e) {
+    const startTime = new Date(this.start_time.value);
+    const endTime = new Date(this.end_time.value);
+    
+    if (endTime <= startTime) {
+        e.preventDefault();
+        new bootstrap.Modal(document.getElementById('timeValidationModal')).show();
+        return false;
+    }
+    
+    const maxScore = parseInt(this.max_score.value);
+    if (maxScore < 1 || maxScore > 999) {
+        e.preventDefault();
+        showToast('满分必须在 1-999 之间', 'warning');
+        return false;
+    }
+    
+    showLoading();
+});
+
+document.getElementById('is_active').addEventListener('change', function() {
+    this.nextElementSibling.textContent = this.checked ? '已启用' : '已禁用';
+});
+
+{% if exam %}
+$(document).ready(function() {
+    $.ajax({
+        url: `{% url 'teacher:exam_stats' exam.id %}`,
+        method: 'GET',
+        success: function(data) {
+            if (data.questions_count !== undefined) {
+                location.reload();
+            }
+        }
+    });
+});
+{% endif %}
+</script>
+{% endblock %}

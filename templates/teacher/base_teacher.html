@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}教师端 - 在线考试系统{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --primary-dark: #0a58ca;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-bg: #f8f9fa;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: linear-gradient(180deg, #0d6efd 0%, #0a58ca 100%);
+            color: white;
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-brand {
+            padding: 20px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-menu {
+            padding: 15px 0;
+        }
+
+        .sidebar-menu-item {
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: rgba(255,255,255,0.5);
+        }
+
+        .sidebar-menu-item.active {
+            background-color: rgba(255,255,255,0.15);
+            color: white;
+            border-left-color: white;
+            font-weight: 500;
+        }
+
+        .sidebar-menu-item i {
+            font-size: 1.1rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        .top-navbar {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .breadcrumb-custom {
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .content-wrapper {
+            padding: 25px 30px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            background: white;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0 !important;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary { background: #e7f1ff; color: var(--primary-color); }
+        .stat-icon.success { background: #e8f5e9; color: var(--success-color); }
+        .stat-icon.warning { background: #fff8e1; color: var(--warning-color); }
+        .stat-icon.danger { background: #ffebee; color: var(--danger-color); }
+        .stat-icon.info { background: #e0f7fa; color: var(--info-color); }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #666;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+            padding: 12px 15px;
+        }
+
+        .table td {
+            padding: 12px 15px;
+            vertical-align: middle;
+        }
+
+        .badge-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-ongoing { background: #d1e7dd; color: #0f5132; }
+        .badge-not-started { background: #fff3cd; color: #664d03; }
+        .badge-over { background: #f8d7da; color: #842029; }
+        .badge-active { background: #d1e7dd; color: #0f5132; }
+        .badge-inactive { background: #e2e3e5; color: #41464b; }
+
+        .action-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btns .btn {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .spinner-border-custom {
+            width: 3rem;
+            height: 3rem;
+            border: 0.3rem solid #f3f3f3;
+            border-top: 0.3rem solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 30px;
+            z-index: 9999;
+        }
+
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .required-field::after {
+            content: ' *';
+            color: var(--danger-color);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-toggle {
+                display: block !important;
+            }
+        }
+
+        .mobile-toggle {
+            display: none;
+        }
+
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #dee2e6;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #495057;
+            transition: all 0.2s;
+            gap: 10px;
+        }
+
+        .quick-action-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+        }
+
+        .quick-action-btn i {
+            font-size: 1.5rem;
+        }
+
+        .quick-action-btn span {
+            font-weight: 500;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="spinner-border-custom"></div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    {% block sidebar %}
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-mortarboard-fill"></i>
+            <span>在线考试系统</span>
+        </div>
+        <div class="sidebar-menu">
+            <a href="{% url 'teacher:dashboard' %}" class="sidebar-menu-item {% if active_menu == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>仪表盘</span>
+            </a>
+            <a href="{% url 'teacher:exam_list' %}" class="sidebar-menu-item {% if active_menu == 'exams' or active_menu == 'questions' %}active{% endif %}">
+                <i class="bi bi-file-earmark-text"></i>
+                <span>考试管理</span>
+            </a>
+            <a href="{% url 'teacher:question_bank' %}" class="sidebar-menu-item {% if active_menu == 'questions' %}active{% endif %}">
+                <i class="bi bi-list-task"></i>
+                <span>题目管理</span>
+            </a>
+            <a href="{% url 'teacher:qrcode' %}" class="sidebar-menu-item {% if active_menu == 'qrcode' %}active{% endif %}">
+                <i class="bi bi-qr-code"></i>
+                <span>二维码管理</span>
+            </a>
+            <a href="{% url 'teacher:scores' %}" class="sidebar-menu-item {% if active_menu == 'scores' %}active{% endif %}">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>成绩管理</span>
+            </a>
+            <a href="{% url 'teacher:students' %}" class="sidebar-menu-item {% if active_menu == 'students' %}active{% endif %}">
+                <i class="bi bi-people"></i>
+                <span>学生管理</span>
+            </a>
+            <hr style="border-color: rgba(255,255,255,0.2); margin: 15px 20px;">
+            <a href="{% url 'accounts:teacher_logout' %}" class="sidebar-menu-item">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>退出登录</span>
+            </a>
+        </div>
+    </nav>
+    {% endblock %}
+
+    <div class="main-content">
+        <nav class="top-navbar">
+            <div>
+                <button class="btn btn-link text-dark d-md-none mobile-toggle" onclick="toggleSidebar()">
+                    <i class="bi bi-list fs-4"></i>
+                </button>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb breadcrumb-custom">
+                        <li class="breadcrumb-item"><a href="{% url 'teacher:dashboard' %}">教师端</a></li>
+                        {% block breadcrumb %}{% endblock %}
+                    </ol>
+                </nav>
+            </div>
+            <div class="user-info">
+                <div class="text-end d-none d-md-block">
+                    <div class="fw-semibold">{{ user.username }}</div>
+                    <small class="text-muted">教师</small>
+                </div>
+                <div class="user-avatar">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+            </div>
+        </nav>
+
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认操作</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                    确定要执行此操作吗？
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmBtn">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script>
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${type} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        function confirmAction(message, callback) {
+            document.getElementById('confirmModalBody').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            modal.show();
+            document.getElementById('confirmBtn').onclick = function() {
+                modal.hide();
+                callback();
+            };
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+        }
+
+        $(document).ready(function() {
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            $('form').on('submit', function() {
+                showLoading();
+            });
+        });
+
+        {% if messages %}
+            {% for message in messages %}
+                showToast('{{ message }}', '{{ message.tags }}');
+            {% endfor %}
+        {% endif %}
+
+        {% block extra_js %}{% endblock %}
+    </script>
+</body>
+</html>

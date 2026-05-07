@@ -1,0 +1,262 @@
+{% extends 'teacher/base_teacher.html' %}
+
+{% block title %}二维码管理 - 教师端{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">二维码管理</li>
+{% endblock %}
+
+{% block active_menu %}qrcode{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📱 二维码管理</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-qr-code"></i> 生成考试二维码
+            </div>
+            <div class="card-body">
+                <form id="qrForm">
+                    <div class="mb-3">
+                        <label class="form-label required-field">选择考试</label>
+                        <select class="form-select" id="examSelect" required>
+                            <option value="">-- 请选择考试 --</option>
+                            {% for exam in exams %}
+                            <option value="{{ exam.id }}" {% if selected_exam == exam.id %}selected{% endif %}>
+                                {{ exam.title }} ({{ exam.start_time|date:"m-d H:i" }} - {{ exam.end_time|date:"m-d H:i" }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-qr-code-scan"></i> 生成二维码
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> 使用说明
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li>选择要生成二维码的考试</li>
+                    <li>点击"生成二维码"按钮</li>
+                    <li>学生使用微信扫码登录</li>
+                    <li>二维码每 60 秒自动刷新</li>
+                    <li>可手动点击"刷新二维码"</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="qrCodeSection" style="display: none;">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card text-center">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0" id="qrExamTitle">考试二维码</h5>
+                </div>
+                <div class="card-body">
+                    <div id="qrCodeContainer" class="mb-4">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">正在生成二维码...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2 justify-content-center mb-3">
+                        <button class="btn btn-outline-primary" onclick="refreshQRCode()">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新二维码
+                        </button>
+                        <button class="btn btn-outline-success" onclick="downloadQRCode()">
+                            <i class="bi bi-download"></i> 下载二维码
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-info mb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-clock"></i> 
+                                剩余时间：<span id="countdown" class="fw-bold">60</span>秒
+                            </div>
+                            <div>
+                                <i class="bi bi-people"></i>
+                                已扫码：<span id="scanCount" class="fw-bold">0</span>人
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4" id="scanStats" style="display: none;">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-people"></i> 扫码记录
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>学生姓名</th>
+                                <th>学号</th>
+                                <th>扫码时间</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanRecords">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+let currentExamId = null;
+let countdownInterval = null;
+let qrRefreshInterval = null;
+
+document.getElementById('qrForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    currentExamId = document.getElementById('examSelect').value;
+    
+    if (!currentExamId) {
+        showToast('请选择考试', 'warning');
+        return;
+    }
+    
+    document.getElementById('qrCodeSection').style.display = 'block';
+    document.getElementById('scanStats').style.display = 'block';
+    document.getElementById('qrExamTitle').textContent = '考试二维码 - ' + 
+        document.getElementById('examSelect').options[document.getElementById('examSelect').selectedIndex].text;
+    
+    generateQRCode();
+    startCountdown();
+});
+
+function generateQRCode() {
+    showLoading();
+    
+    $.ajax({
+        url: '/teacher/api/generate-qr/',
+        type: 'POST',
+        data: JSON.stringify({ exam_id: currentExamId }),
+        contentType: 'application/json',
+        success: function(response) {
+            if (response.success) {
+                document.getElementById('qrCodeContainer').innerHTML = `
+                    <img src="${response.qr_code_url}" alt="QR Code" style="max-width: 300px;">
+                    <p class="text-muted mt-2">Session ID: <code>${response.session_id}</code></p>
+                `;
+                hideLoading();
+                showToast('二维码已生成', 'success');
+            } else {
+                showToast('生成失败：' + response.error, 'danger');
+                hideLoading();
+            }
+        },
+        error: function() {
+            showToast('生成失败，请重试', 'danger');
+            hideLoading();
+        }
+    });
+}
+
+function refreshQRCode() {
+    generateQRCode();
+    startCountdown();
+}
+
+function startCountdown() {
+    let seconds = 60;
+    document.getElementById('countdown').textContent = seconds;
+    
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+    
+    countdownInterval = setInterval(function() {
+        seconds--;
+        document.getElementById('countdown').textContent = seconds;
+        
+        if (seconds <= 10) {
+            document.getElementById('countdown').classList.add('text-danger');
+        } else {
+            document.getElementById('countdown').classList.remove('text-danger');
+        }
+        
+        if (seconds <= 0) {
+            clearInterval(countdownInterval);
+            refreshQRCode();
+        }
+    }, 1000);
+    
+    qrRefreshInterval = setInterval(function() {
+        loadScanStats();
+    }, 5000);
+    
+    loadScanStats();
+}
+
+function loadScanStats() {
+    if (!currentExamId) return;
+    
+    $.ajax({
+        url: `/teacher/api/qr-stats/${currentExamId}/`,
+        method: 'GET',
+        success: function(data) {
+            document.getElementById('scanCount').textContent = data.scan_count || 0;
+            
+            if (data.records && data.records.length > 0) {
+                let html = '';
+                data.records.forEach((record, index) => {
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${record.username}</td>
+                            <td>${record.student_id}</td>
+                            <td>${record.scan_time}</td>
+                            <td><span class="badge bg-success">已扫码</span></td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('scanRecords').innerHTML = html;
+            }
+        }
+    });
+}
+
+function downloadQRCode() {
+    const img = document.querySelector('#qrCodeContainer img');
+    if (img) {
+        const link = document.createElement('a');
+        link.download = `qr_code_${currentExamId}.png`;
+        link.href = img.src;
+        link.click();
+        showToast('下载已开始', 'success');
+    }
+}
+
+window.addEventListener('beforeunload', function() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+});
+{% endblock %}
