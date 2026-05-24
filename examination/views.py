@@ -12,6 +12,27 @@ from .models import Exam, ExamRecord
 from .services import ExamService
 
 
+@require_POST
+def exam_enter(request, exam_id):
+    """进入考试验证（扫码或输入考试码）"""
+    if not request.user.is_authenticated or request.user.role != UserRole.STUDENT:
+        return error_response(401, "请先登录")
+
+    code = request.POST.get("code", "").strip()
+    if not code:
+        return error_response(400, "请输入考试码")
+
+    try:
+        exam = Exam.objects.get(id=exam_id, is_active=True)
+    except Exam.DoesNotExist:
+        return error_response(404, "考试不存在")
+
+    if exam.exam_code != code:
+        return error_response(400, "考试码错误")
+
+    return success_response(data={"exam_id": exam.id, "redirect": f"/exams/{exam.id}/take/"})
+
+
 def exam_list(request):
     if not request.user.is_authenticated or request.user.role != UserRole.STUDENT:
         return redirect("/accounts/login/")

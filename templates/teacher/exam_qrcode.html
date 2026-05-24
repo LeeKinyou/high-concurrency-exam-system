@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}考试二维码 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>考试二维码</h2>
+        <a href="/teacher/exams/{{ exam.id }}/edit/" class="btn btn-secondary">返回编辑</a>
+    </div>
+
+    <div class="card" style="padding:30px;text-align:center">
+        <h3>{{ exam.title }}</h3>
+        <p style="color:#888;margin:8px 0">考试码：{{ exam.exam_code }}</p>
+
+        <div style="margin:30px 0">
+            {% load base64_filters %}
+            <img src="data:image/png;base64,{{ qr_image|b64encode }}" alt="考试二维码" style="max-width:300px;border:1px solid #eee;border-radius:8px">
+        </div>
+
+        <p style="color:#666;font-size:14px">学生扫描二维码或输入考试码即可进入考试</p>
+
+        <div style="margin-top:20px;padding:16px;background:#f0f4f8;border-radius:8px">
+            <p style="margin:0;font-size:14px;color:#888">考试入口链接</p>
+            <p style="margin:8px 0 0;font-size:13px;word-break:break-all">
+                /exams/{{ exam.id }}/enter/?code={{ exam.exam_code }}
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

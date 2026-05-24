@@ -16,6 +16,7 @@
             </div>
         </div>
         <div style="display:flex;gap:12px">
+            <a href="/teacher/exams/{{ exam.id }}/qrcode/" style="color:#34a853;text-decoration:none">二维码</a>
             <a href="/teacher/exams/{{ exam.id }}/edit/" style="color:#4a90d9;text-decoration:none">编辑</a>
             <form method="post" action="/teacher/exams/{{ exam.id }}/delete/" style="display:inline" onsubmit="return confirm('确认停用？')">
                 {% csrf_token %}

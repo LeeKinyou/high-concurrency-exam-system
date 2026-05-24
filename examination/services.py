@@ -155,6 +155,81 @@ class ExamService:
         return ExamRecord.objects.filter(exam_id=exam_id, student=student).first()
 
 
+class ScoreService:
+    """成绩管理服务"""
+
+    @staticmethod
+    def get_exam_scores(exam_id: int, teacher) -> dict:
+        """获取某场考试的所有学生成绩"""
+        try:
+            exam = Exam.objects.get(id=exam_id, created_by=teacher)
+        except Exam.DoesNotExist:
+            raise NotFoundError("考试不存在")
+
+        records = (
+            ExamRecord.objects.filter(exam=exam)
+            .select_related("student")
+            .order_by("-score")
+        )
+
+        total_students = records.count()
+        graded_students = records.filter(is_graded=True).count()
+        submitted_students = records.exclude(status=RecordStatus.DRAFT).count()
+
+        scores = [r.score for r in records if r.is_graded]
+        avg_score = sum(scores) / len(scores) if scores else 0
+        max_score = max(scores) if scores else 0
+        min_score = min(scores) if scores else 0
+
+        return {
+            "exam": exam,
+            "records": records,
+            "stats": {
+                "total_students": total_students,
+                "submitted_students": submitted_students,
+                "graded_students": graded_students,
+                "avg_score": round(avg_score, 1),
+                "max_score": max_score,
+                "min_score": min_score,
+            },
+        }
+
+    @staticmethod
+    def export_exam_scores(exam_id: int, teacher) -> bytes:
+        """导出考试成绩为 Excel 文件"""
+        from io import BytesIO
+
+        from openpyxl import Workbook
+
+        data = ScoreService.get_exam_scores(exam_id, teacher)
+        exam = data["exam"]
+        records = data["records"]
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{exam.title} - 成绩"
+
+        headers = ["学号", "姓名", "状态", "得分", "总分", "提交时间"]
+        ws.append(headers)
+
+        for record in records:
+            student = record.student
+            status_display = dict(RecordStatus.choices).get(record.status, record.status)
+            ws.append([
+                student.student_id or "",
+                student.first_name or student.username,
+                status_display,
+                record.score if record.is_graded else "",
+                record.total_score,
+                record.submit_time.strftime("%Y-%m-%d %H:%M") if record.submit_time else "",
+            ])
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf.getvalue()
+
+
 class ClassService:
     """班级管理服务"""
 

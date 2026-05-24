@@ -11,4 +11,5 @@ urlpatterns = [
     path("<int:exam_id>/submit/", views.exam_submit, name="exam_submit"),
     path("<int:exam_id>/save-answer/", views.exam_save_answer, name="exam_save_answer"),
     path("<int:exam_id>/result/", views.exam_result, name="exam_result"),
+    path("<int:exam_id>/enter/", views.exam_enter, name="exam_enter"),
 ]

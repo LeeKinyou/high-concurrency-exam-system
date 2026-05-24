@@ -6,6 +6,7 @@ from django.utils import timezone
 from accounts.models import User
 from core.constants import UserRole
 from examination.models import ClassInfo, Exam, ExamQuestion, ExamRecord, Question, StudentClassRelation
+from examination.services import ExamService
 
 
 @pytest.mark.django_db
@@ -135,3 +136,63 @@ class TestTeacherViews:
         resp = client.get("/teacher/classes/")
         assert resp.status_code == 200
         assert "计科1班" in resp.content.decode()
+
+    def test_score_list(self, client, teacher):
+        client.login(username="teacher01", password="Test@1234")
+        resp = client.get("/teacher/scores/")
+        assert resp.status_code == 200
+
+    def test_score_list_with_exam(self, client, teacher, student):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", total_score=10)
+        q = Question.objects.create(exam=exam, question_type="choice", content="Q1", answer="B", score=10)
+        ExamQuestion.objects.create(exam=exam, question=q, order=1)
+        record = ExamService.start_exam(exam.id, student)
+        ExamService.save_answers(record.id, {str(q.id): "B"})
+        ExamService.submit_exam(record.id, student, "127.0.0.1")
+
+        client.login(username="teacher01", password="Test@1234")
+        resp = client.get(f"/teacher/scores/?exam_id={exam.id}")
+        assert resp.status_code == 200
+        assert "测试" in resp.content.decode()
+
+    def test_score_export(self, client, teacher, student):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", total_score=10)
+        q = Question.objects.create(exam=exam, question_type="choice", content="Q1", answer="B", score=10)
+        ExamQuestion.objects.create(exam=exam, question=q, order=1)
+        record = ExamService.start_exam(exam.id, student)
+        ExamService.save_answers(record.id, {str(q.id): "B"})
+        ExamService.submit_exam(record.id, student, "127.0.0.1")
+
+        client.login(username="teacher01", password="Test@1234")
+        resp = client.get(f"/teacher/scores/{exam.id}/export/")
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    def test_exam_qrcode(self, client, teacher):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public")
+        client.login(username="teacher01", password="Test@1234")
+        resp = client.get(f"/teacher/exams/{exam.id}/qrcode/")
+        assert resp.status_code == 200
+        assert "考试二维码" in resp.content.decode()
+
+
+@pytest.mark.django_db
+class TestExamEnterView:
+    def test_enter_with_valid_code(self, client, student, teacher):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", exam_code="TEST123")
+        client.login(username="student01", password="Test@1234")
+        resp = client.post(f"/exams/{exam.id}/enter/", {"code": "TEST123"})
+        assert resp.status_code == 200
+        data = json.loads(resp.content)
+        assert data["data"]["exam_id"] == exam.id
+
+    def test_enter_with_invalid_code(self, client, student, teacher):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", exam_code="TEST123")
+        client.login(username="student01", password="Test@1234")
+        resp = client.post(f"/exams/{exam.id}/enter/", {"code": "WRONG"})
+        assert resp.status_code == 400
+
+    def test_enter_without_login(self, client, teacher):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", exam_code="TEST123")
+        resp = client.post(f"/exams/{exam.id}/enter/", {"code": "TEST123"})
+        assert resp.status_code == 401

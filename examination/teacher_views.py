@@ -1,5 +1,6 @@
 import json
 
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
@@ -9,7 +10,8 @@ from core.responses import error_response, success_response
 
 from .excel_importer import import_questions_from_excel
 from .models import ClassInfo, Exam, ExamQuestion, Question
-from .services import ClassService, ExamService
+from .services import ClassService, ExamService, ScoreService
+from .utils import generate_exam_qrcode
 
 
 @teacher_required
@@ -160,3 +162,54 @@ def class_list(request):
         class_data.append({"class_info": cls, "students": students, "student_count": students.count()})
 
     return render(request, "teacher/class_list.html", {"class_data": class_data})
+
+
+@teacher_required
+def score_list(request):
+    """成绩管理页面"""
+    exams = Exam.objects.filter(created_by=request.user, is_active=True).order_by("-created_at")
+    exam_id = request.GET.get("exam_id")
+
+    context = {"exams": exams, "selected_exam_id": int(exam_id) if exam_id else None}
+
+    if exam_id:
+        try:
+            data = ScoreService.get_exam_scores(int(exam_id), request.user)
+            context.update(data)
+        except Exception:
+            pass
+
+    return render(request, "teacher/score_list.html", context)
+
+
+@teacher_required
+def score_export(request, exam_id):
+    """导出考试成绩为 Excel"""
+    try:
+        file_data = ScoreService.export_exam_scores(exam_id, request.user)
+    except Exception:
+        return redirect("/teacher/scores/")
+
+    exam = Exam.objects.get(id=exam_id)
+    response = HttpResponse(
+        file_data,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{exam.title}_scores.xlsx"'
+    return response
+
+
+@teacher_required
+def exam_qrcode(request, exam_id):
+    """生成考试二维码"""
+    try:
+        exam = Exam.objects.get(id=exam_id, created_by=request.user)
+    except Exam.DoesNotExist:
+        return redirect("/teacher/exams/")
+
+    qr_image = generate_exam_qrcode(exam.id, exam.exam_code)
+
+    return render(request, "teacher/exam_qrcode.html", {
+        "exam": exam,
+        "qr_image": qr_image,
+    })

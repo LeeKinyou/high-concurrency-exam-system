@@ -11,7 +11,7 @@ from core.exceptions import (
     PermissionDeniedError,
 )
 from examination.models import ClassInfo, Exam, ExamQuestion, ExamRecord, Question, StudentClassRelation
-from examination.services import ClassService, ExamService
+from examination.services import ClassService, ExamService, ScoreService
 
 
 @pytest.mark.django_db
@@ -126,3 +126,40 @@ class TestClassService:
         ClassService.add_student_to_class(cls.id, student.id)
         students = ClassService.get_students_in_class(cls.id)
         assert students.count() == 1
+
+
+@pytest.mark.django_db
+class TestScoreService:
+    def test_get_exam_scores(self, teacher, student):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", total_score=10)
+        q = Question.objects.create(exam=exam, question_type="choice", content="Q1", answer="B", score=10)
+        ExamQuestion.objects.create(exam=exam, question=q, order=1)
+        record = ExamService.start_exam(exam.id, student)
+        ExamService.save_answers(record.id, {str(q.id): "B"})
+        ExamService.submit_exam(record.id, student, "127.0.0.1")
+
+        data = ScoreService.get_exam_scores(exam.id, teacher)
+        assert data["exam"].id == exam.id
+        assert data["stats"]["total_students"] == 1
+        assert data["stats"]["graded_students"] == 1
+        assert data["stats"]["avg_score"] == 10
+
+    def test_get_exam_scores_wrong_teacher(self, teacher, student):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public")
+        other_teacher = User.objects.create_user(
+            username="other", password="Test@1234", role=UserRole.TEACHER
+        )
+        with pytest.raises(NotFoundError):
+            ScoreService.get_exam_scores(exam.id, other_teacher)
+
+    def test_export_exam_scores(self, teacher, student):
+        exam = Exam.objects.create(title="测试", created_by=teacher, visibility="public", total_score=10)
+        q = Question.objects.create(exam=exam, question_type="choice", content="Q1", answer="B", score=10)
+        ExamQuestion.objects.create(exam=exam, question=q, order=1)
+        record = ExamService.start_exam(exam.id, student)
+        ExamService.save_answers(record.id, {str(q.id): "B"})
+        ExamService.submit_exam(record.id, student, "127.0.0.1")
+
+        file_data = ScoreService.export_exam_scores(exam.id, teacher)
+        assert isinstance(file_data, bytes)
+        assert len(file_data) > 0

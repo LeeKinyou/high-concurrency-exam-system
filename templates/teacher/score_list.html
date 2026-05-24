@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}成绩管理 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>成绩管理</h2>
+    </div>
+
+    <div class="card" style="padding:20px;margin-bottom:20px">
+        <form method="get" style="display:flex;gap:12px;align-items:center">
+            <label>选择考试：</label>
+            <select name="exam_id" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+                <option value="">-- 请选择考试 --</option>
+                {% for exam in exams %}
+                <option value="{{ exam.id }}" {% if selected_exam_id == exam.id %}selected{% endif %}>{{ exam.title }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">查看成绩</button>
+        </form>
+    </div>
+
+    {% if exam %}
+    <div class="card" style="padding:20px;margin-bottom:20px">
+        <h3>{{ exam.title }} - 成绩统计</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px">
+            <div style="text-align:center;padding:16px;background:#f0f4f8;border-radius:8px">
+                <div style="font-size:24px;font-weight:bold;color:#1a73e8">{{ stats.submitted_students }}</div>
+                <div style="color:#888;font-size:14px">已提交</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:#f0f4f8;border-radius:8px">
+                <div style="font-size:24px;font-weight:bold;color:#34a853">{{ stats.avg_score }}</div>
+                <div style="color:#888;font-size:14px">平均分</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:#f0f4f8;border-radius:8px">
+                <div style="font-size:24px;font-weight:bold;color:#fbbc04">{{ stats.max_score }}</div>
+                <div style="color:#888;font-size:14px">最高分</div>
+            </div>
+        </div>
+        <div style="margin-top:16px;text-align:right">
+            <a href="/teacher/scores/{{ exam.id }}/export/" class="btn btn-secondary">导出 Excel</a>
+        </div>
+    </div>
+
+    <div class="card" style="padding:20px">
+        <table style="width:100%;border-collapse:collapse">
+            <thead>
+                <tr style="border-bottom:2px solid #eee">
+                    <th style="text-align:left;padding:12px 8px">学号</th>
+                    <th style="text-align:left;padding:12px 8px">姓名</th>
+                    <th style="text-align:center;padding:12px 8px">状态</th>
+                    <th style="text-align:right;padding:12px 8px">得分</th>
+                    <th style="text-align:right;padding:12px 8px">提交时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr style="border-bottom:1px solid #f0f0f0">
+                    <td style="padding:12px 8px">{{ record.student.student_id|default:"-" }}</td>
+                    <td style="padding:12px 8px">{{ record.student.first_name|default:record.student.username }}</td>
+                    <td style="text-align:center;padding:12px 8px">
+                        {% if record.status == "draft" %}
+                        <span style="color:#888">未提交</span>
+                        {% elif record.status == "auto_graded" %}
+                        <span style="color:#34a853">已批改</span>
+                        {% elif record.status == "submitted" %}
+                        <span style="color:#fbbc04">待批改</span>
+                        {% else %}
+                        <span style="color:#1a73e8">{{ record.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right;padding:12px 8px;font-weight:bold">
+                        {% if record.is_graded %}{{ record.score }}{% else %}-{% endif %}
+                    </td>
+                    <td style="text-align:right;padding:12px 8px;color:#888;font-size:13px">
+                        {% if record.submit_time %}{{ record.submit_time|date:"Y-m-d H:i" }}{% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center;padding:40px;color:#888">暂无成绩数据</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
