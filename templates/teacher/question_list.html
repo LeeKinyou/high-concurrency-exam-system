@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}题目管理 - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:900px">
+<div class="container" style="max-width:960px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
         <h2>题目管理</h2>
         <div style="display:flex;gap:8px">
@@ -31,16 +31,33 @@
     </div>
 
     {% for q in questions %}
-    <div class="card" style="margin-top:8px;padding:14px 20px">
-        <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-                <span style="font-size:12px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:4px">{{ q.get_question_type_display }}</span>
-                <span style="font-size:12px;color:#888;margin-left:8px">{{ q.get_difficulty_display }}</span>
-                {% if q.exam %}<span style="font-size:12px;color:#888;margin-left:8px">{{ q.exam.title }}</span>{% endif %}
+    <div class="card" id="q-{{ q.id }}" style="margin-top:8px;padding:14px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <span style="font-size:12px;font-weight:bold;color:#4a90d9;background:#eef2ff;padding:2px 8px;border-radius:4px">#{{ forloop.counter }}</span>
+                    <span style="font-size:12px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:4px">{{ q.get_question_type_display }}</span>
+                    <span style="font-size:12px;color:#888">{{ q.get_difficulty_display }}</span>
+                    <span style="font-weight:bold;color:#4a90d9;font-size:13px">{{ q.score }}分</span>
+                </div>
+                <div style="font-size:14px;line-height:1.6">{{ q.content|truncatewords:40 }}</div>
             </div>
-            <span style="font-weight:bold;color:#4a90d9">{{ q.score }}分</span>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:12px;color:#888">关联考试:</span>
+                    <select onchange="linkExam({{ q.id }}, this)" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;max-width:160px">
+                        <option value="">未关联</option>
+                        {% for exam in exams %}
+                        <option value="{{ exam.id }}" {% if q.exam and q.exam.id == exam.id %}selected{% endif %}>{{ exam.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display:flex;gap:6px">
+                    <span id="link-msg-{{ q.id }}" style="font-size:11px;display:none"></span>
+                    <button onclick="deleteQuestion({{ q.id }})" style="background:none;border:1px solid #fecaca;color:#e74c3c;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">删除</button>
+                </div>
+            </div>
         </div>
-        <div style="margin-top:8px">{{ q.content|truncatewords:30 }}</div>
     </div>
     {% empty %}
     <p style="color:#888;text-align:center;padding:40px">暂无题目，点击"手动创建"或"Excel导入"添加</p>
@@ -56,27 +73,101 @@ function hideImportForm() {
 
 document.getElementById('import-submit-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    const formData = new FormData(this);
-    const resultDiv = document.getElementById('import-result');
+    var formData = new FormData(this);
+    var resultDiv = document.getElementById('import-result');
+    var submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '导入中...';
+
     fetch('/teacher/api/questions/import/', {
         method: 'POST',
         headers: {'X-CSRFToken': formData.get('csrfmiddlewaretoken')},
         body: formData
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) {
+        return r.json().catch(function() {
+            throw new Error('服务器返回了非JSON响应 (HTTP ' + r.status + ')');
+        });
+    })
+    .then(function(data) {
         resultDiv.style.display = 'block';
         if (data.code === 200) {
             resultDiv.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:8px;color:#16a34a">' + data.message + '</div>';
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(function() { location.reload(); }, 1500);
         } else {
-            resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">' + data.message + '</div>';
+            resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">' + (data.message || '导入失败') + '</div>';
         }
     })
-    .catch(() => {
+    .catch(function(err) {
         resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">网络错误</div>';
+        resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">导入失败: ' + (err.message || '网络错误') + '</div>';
+    })
+    .finally(function() {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '开始导入';
     });
 });
+
+function deleteQuestion(qId) {
+    if (!confirm('确认删除此题目？')) return;
+
+    var card = document.getElementById('q-' + qId);
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch('/teacher/questions/' + qId + '/delete/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.code === 200) {
+            card.style.transition = 'opacity 0.3s';
+            card.style.opacity = '0';
+            setTimeout(function() { card.remove(); }, 300);
+        } else {
+            alert(data.message || '删除失败');
+        }
+    })
+    .catch(function() {
+        alert('删除失败');
+    });
+}
+
+function linkExam(qId, selectEl) {
+    var examId = selectEl.value;
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    var msgSpan = document.getElementById('link-msg-' + qId);
+
+    var formData = new FormData();
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append('exam_id', examId);
+
+    fetch('/teacher/questions/' + qId + '/link-exam/', {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: formData
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        msgSpan.style.display = 'inline';
+        if (data.code === 200) {
+            msgSpan.style.color = '#16a34a';
+            msgSpan.textContent = data.message;
+        } else {
+            msgSpan.style.color = '#e74c3c';
+            msgSpan.textContent = data.message || '操作失败';
+        }
+        setTimeout(function() { msgSpan.style.display = 'none'; }, 2000);
+    })
+    .catch(function() {
+        msgSpan.style.display = 'inline';
+        msgSpan.style.color = '#e74c3c';
+        msgSpan.textContent = '操作失败';
+        setTimeout(function() { msgSpan.style.display = 'none'; }, 2000);
+    });
+}
 </script>
 {% endblock %}

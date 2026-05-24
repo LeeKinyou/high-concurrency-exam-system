@@ -11,7 +11,7 @@ from core.constants import Visibility
 from core.responses import error_response, success_response
 
 from .excel_importer import import_questions_from_excel
-from .models import ClassInfo, Exam, ExamQuestion, Question
+from .models import ClassInfo, Exam, ExamQuestion, Question, StudentClassRelation
 from .services import AntiCheatService, ClassService, ExamService, ScoreService
 from .utils import generate_exam_qrcode
 
@@ -132,7 +132,9 @@ def exam_delete(request, exam_id):
 @teacher_required
 def question_list(request):
     questions = (
-        Question.objects.filter(exam__created_by=request.user)
+        Question.objects.filter(
+            models.Q(exam__created_by=request.user) | models.Q(exam__isnull=True)
+        )
         .select_related("exam")
         .order_by("-id")[:100]
     )
@@ -144,45 +146,53 @@ def question_list(request):
 def question_create(request):
     """手动创建题目"""
     if request.method == "POST":
-        exam_id = request.POST.get("exam_id")
-        q_type = request.POST.get("question_type", "choice")
-        content = request.POST.get("content", "").strip()
-        answer = request.POST.get("answer", "").strip()
-        score = int(request.POST.get("score", 10))
-        difficulty = request.POST.get("difficulty", "medium")
-        explanation = request.POST.get("explanation", "").strip()
+        try:
+            exam_id = request.POST.get("exam_id", "").strip()
+            q_type = request.POST.get("question_type", "choice")
+            content = request.POST.get("content", "").strip()
+            answer = request.POST.get("answer", "").strip()
+            score_str = request.POST.get("score", "10").strip()
+            score = int(score_str) if score_str else 10
+            difficulty = request.POST.get("difficulty", "medium")
+            explanation = request.POST.get("explanation", "").strip()
 
-        if not content or not answer:
+            if not content or not answer:
+                exams = Exam.objects.filter(created_by=request.user, is_active=True)
+                return render(request, "teacher/question_create.html", {"error": "题干和答案不能为空", "exams": exams})
+
+            options = []
+            if q_type == "choice":
+                for label in ["A", "B", "C", "D"]:
+                    opt_text = request.POST.get(f"option_{label}", "").strip()
+                    if opt_text:
+                        options.append({"label": label, "text": opt_text})
+
+            exam = None
+            if exam_id:
+                exam = Exam.objects.get(id=int(exam_id))
+
+            question = Question.objects.create(
+                exam=exam,
+                question_type=q_type,
+                content=content,
+                options=json.dumps(options, ensure_ascii=False) if options else "[]",
+                answer=answer,
+                score=score,
+                difficulty=difficulty,
+                explanation=explanation,
+            )
+
+            if exam:
+                order = exam.exam_questions.count() + 1
+                ExamQuestion.objects.create(exam=exam, question=question, order=order)
+
+            return redirect("/teacher/questions/")
+        except Exam.DoesNotExist:
             exams = Exam.objects.filter(created_by=request.user, is_active=True)
-            return render(request, "teacher/question_create.html", {"error": "题干和答案不能为空", "exams": exams})
-
-        options = []
-        if q_type == "choice":
-            for label in ["A", "B", "C", "D"]:
-                opt_text = request.POST.get(f"option_{label}", "").strip()
-                if opt_text:
-                    options.append({"label": label, "text": opt_text})
-
-        exam = None
-        if exam_id:
-            exam = Exam.objects.get(id=int(exam_id))
-
-        question = Question.objects.create(
-            exam=exam,
-            question_type=q_type,
-            content=content,
-            options=json.dumps(options, ensure_ascii=False) if options else "[]",
-            answer=answer,
-            score=score,
-            difficulty=difficulty,
-            explanation=explanation,
-        )
-
-        if exam:
-            order = exam.exam_questions.count() + 1
-            ExamQuestion.objects.create(exam=exam, question=question, order=order)
-
-        return redirect("/teacher/questions/")
+            return render(request, "teacher/question_create.html", {"error": "所选考试不存在", "exams": exams})
+        except (ValueError, TypeError) as e:
+            exams = Exam.objects.filter(created_by=request.user, is_active=True)
+            return render(request, "teacher/question_create.html", {"error": f"输入数据有误: {e}", "exams": exams})
 
     exams = Exam.objects.filter(created_by=request.user, is_active=True)
     return render(request, "teacher/question_create.html", {"exams": exams})
@@ -206,6 +216,55 @@ def question_import(request):
         )
     except Exception as e:
         return error_response(400, str(e))
+
+
+@teacher_required
+@require_POST
+def question_delete(request, question_id):
+    """删除题目"""
+    try:
+        question = Question.objects.get(id=question_id)
+        # 只能删除自己创建的考试的题目，或无关联的题目
+        if question.exam and question.exam.created_by != request.user:
+            return error_response(403, "无权删除此题目")
+        question.delete()
+        return success_response(message="题目已删除")
+    except Question.DoesNotExist:
+        return error_response(404, "题目不存在")
+
+
+@teacher_required
+@require_POST
+def question_link_exam(request, question_id):
+    """关联/取消关联题目到考试"""
+    try:
+        question = Question.objects.get(id=question_id)
+        if question.exam and question.exam.created_by != request.user:
+            return error_response(403, "无权操作此题目")
+    except Question.DoesNotExist:
+        return error_response(404, "题目不存在")
+
+    exam_id = request.POST.get("exam_id", "").strip()
+
+    if not exam_id:
+        # 取消关联
+        ExamQuestion.objects.filter(question=question).delete()
+        question.exam = None
+        question.save(update_fields=["exam"])
+        return success_response(message="已取消关联")
+
+    try:
+        exam = Exam.objects.get(id=int(exam_id), created_by=request.user)
+    except Exam.DoesNotExist:
+        return error_response(404, "考试不存在")
+
+    # 更新关联
+    ExamQuestion.objects.filter(question=question).delete()
+    question.exam = exam
+    question.save(update_fields=["exam"])
+    order = exam.exam_questions.count() + 1
+    ExamQuestion.objects.create(exam=exam, question=question, order=order)
+    return success_response(message=f"已关联到「{exam.title}」")
 
 
 @teacher_required
@@ -296,21 +355,37 @@ def class_delete(request, class_id):
 @require_POST
 def class_add_student(request, class_id):
     """向班级添加学生"""
+    from accounts.models import User
+
     try:
         cls = ClassInfo.objects.get(id=class_id, teacher=request.user)
     except ClassInfo.DoesNotExist:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return error_response(404, "班级不存在")
         return redirect("/teacher/classes/")
 
+    # 支持通过用户ID或学号添加
+    user_id = request.POST.get("user_id", "").strip()
     student_id = request.POST.get("student_id", "").strip()
-    if not student_id:
-        return redirect("/teacher/classes/")
 
     try:
-        from accounts.models import User
-        student = User.objects.get(student_id=student_id, role="student", is_active=True)
+        if user_id:
+            student = User.objects.get(id=int(user_id), role="student", is_active=True)
+        elif student_id:
+            student = User.objects.get(student_id=student_id, role="student", is_active=True)
+        else:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return error_response(400, "请提供学生ID或学号")
+            return redirect("/teacher/classes/")
         ClassService.add_student_to_class(cls.id, student.id)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return success_response(message="学生已添加")
+    except User.DoesNotExist:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return error_response(404, "未找到该学生")
     except Exception:
-        pass
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return error_response(400, "添加失败")
 
     return redirect("/teacher/classes/")
 
@@ -326,6 +401,106 @@ def class_remove_student(request, class_id, student_id):
     except Exception:
         pass
     return redirect("/teacher/classes/")
+
+
+@teacher_required
+def student_search_api(request):
+    """搜索学生（JSON API）"""
+    from accounts.models import User
+
+    keyword = request.GET.get("q", "").strip()
+    class_id = request.GET.get("class_id")
+
+    if not keyword or len(keyword) < 1:
+        return success_response(data=[])
+
+    students = User.objects.filter(
+        role="student", is_active=True
+    ).filter(
+        models.Q(username__icontains=keyword) |
+        models.Q(first_name__icontains=keyword) |
+        models.Q(student_id__icontains=keyword)
+    )
+
+    # 排除已在该班级中的学生
+    if class_id:
+        existing_ids = StudentClassRelation.objects.filter(
+            class_info_id=int(class_id)
+        ).values_list("student_id", flat=True)
+        students = students.exclude(id__in=existing_ids)
+
+    results = [
+        {
+            "id": s.id,
+            "username": s.username,
+            "name": s.first_name or "",
+            "student_id": s.student_id or "",
+        }
+        for s in students[:20]
+    ]
+    return success_response(data=results)
+
+
+@teacher_required
+@require_POST
+def class_import_students(request, class_id):
+    """Excel 导入学生并添加到班级"""
+    try:
+        cls = ClassInfo.objects.get(id=class_id, teacher=request.user)
+    except ClassInfo.DoesNotExist:
+        return error_response(404, "班级不存在")
+
+    file = request.FILES.get("file")
+    if not file:
+        return error_response(400, "请上传文件")
+
+    try:
+        from accounts.services import AuthService
+
+        result = AuthService.import_students_from_excel(file)
+
+        # 将导入的学生添加到当前班级
+        added_count = 0
+        for err_msg in result["errors"]:
+            pass  # 跳过错误
+
+        # 重新获取所有导入成功的学生（通过查找最近创建的学生）
+        from accounts.models import User
+
+        # 从 Excel 重新读取学号，逐个添加到班级
+        try:
+            from openpyxl import load_workbook
+
+            file.seek(0)
+            wb = load_workbook(file, read_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row or not row[0]:
+                    continue
+                sid = str(row[0]).strip()
+                try:
+                    student = User.objects.get(student_id=sid, role="student")
+                    _, created = StudentClassRelation.objects.get_or_create(
+                        class_info=cls, student=student
+                    )
+                    if created:
+                        added_count += 1
+                except User.DoesNotExist:
+                    pass
+            wb.close()
+        except Exception:
+            pass
+
+        return success_response(
+            data={
+                "success_count": result["success_count"],
+                "added_count": added_count,
+                "errors": result["errors"],
+            },
+            message=f"成功导入{result['success_count']}名学生，其中{added_count}人添加到班级",
+        )
+    except Exception as e:
+        return error_response(400, str(e))
 
 
 @teacher_required
@@ -415,3 +590,25 @@ def student_list(request):
         "students": students,
         "keyword": keyword,
     })
+
+
+@teacher_required
+def student_upload(request):
+    """批量导入学生"""
+    if request.method == "POST":
+        file = request.FILES.get("file")
+        if not file:
+            return render(request, "teacher/student_upload.html", {"error": "请上传文件"})
+
+        try:
+            from accounts.services import AuthService
+
+            result = AuthService.import_students_from_excel(file)
+            return render(request, "teacher/student_upload.html", {
+                "success": f"成功导入{result['success_count']}名学生",
+                "errors": result["errors"],
+            })
+        except Exception as e:
+            return render(request, "teacher/student_upload.html", {"error": str(e)})
+
+    return render(request, "teacher/student_upload.html")

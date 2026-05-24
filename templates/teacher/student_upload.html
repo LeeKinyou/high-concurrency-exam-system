@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}批量导入学生 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>批量导入学生</h2>
+        <a href="/teacher/students/" class="btn btn-secondary" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;text-decoration:none">返回学生列表</a>
+    </div>
+
+    {% if error %}
+    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c;margin-bottom:16px">{{ error }}</div>
+    {% endif %}
+
+    {% if success %}
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:8px;color:#16a34a;margin-bottom:16px">{{ success }}</div>
+    {% if errors %}
+    <div style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;color:#92400e;margin-bottom:16px">
+        <p style="font-weight:bold;margin-bottom:8px">部分导入失败：</p>
+        {% for err in errors %}
+        <p style="margin:4px 0">{{ err }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="card" style="padding:24px">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:8px;font-weight:bold">选择 Excel 文件</label>
+                <p style="color:#888;font-size:14px;margin-bottom:12px">
+                    Excel 格式要求：第一行为表头（可选），数据从第二行开始。<br>
+                    A列=学号（必填），B列=姓名（可选），C列=邮箱（可选）。<br>
+                    默认密码为学号后6位，学生首次登录后需修改密码。
+                </p>
+                <input type="file" name="file" accept=".xlsx,.xls" required style="font-size:14px">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;border:none;border-radius:6px;cursor:pointer;font-size:16px">开始导入</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
