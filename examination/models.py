@@ -267,3 +267,81 @@ class ExamRecord(models.Model):
             return json.loads(self.grading_details)
         except (json.JSONDecodeError, TypeError):
             return {}
+
+
+class AuditLog(models.Model):
+    """操作审计日志"""
+
+    ACTION_CHOICES = [
+        ("screen_switch", "切屏"),
+        ("copy", "复制"),
+        ("paste", "粘贴"),
+        ("focus_loss", "失去焦点"),
+        ("tab_switch", "切换标签页"),
+    ]
+
+    record = models.ForeignKey(
+        ExamRecord,
+        on_delete=models.CASCADE,
+        related_name="audit_logs",
+        verbose_name="考试记录",
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="操作类型")
+    detail = models.TextField(blank=True, default="", verbose_name="详情")
+    ip_address = models.CharField(max_length=45, blank=True, default="", verbose_name="IP地址")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="操作时间")
+
+    class Meta:
+        db_table = "examination_audit_log"
+        verbose_name = "审计日志"
+        verbose_name_plural = "审计日志"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.record.student} - {self.get_action_display()} - {self.created_at}"
+
+
+class Notification(models.Model):
+    """消息通知"""
+
+    TYPE_CHOICES = [
+        ("exam_created", "考试创建"),
+        ("exam_started", "考试开始"),
+        ("exam_ended", "考试结束"),
+        ("score_released", "成绩发布"),
+        ("system", "系统通知"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        verbose_name="用户",
+    )
+    title = models.CharField(max_length=200, verbose_name="标题")
+    content = models.TextField(verbose_name="内容")
+    notification_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default="system",
+        verbose_name="通知类型",
+    )
+    is_read = models.BooleanField(default=False, verbose_name="已读")
+    related_exam = models.ForeignKey(
+        Exam,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+        verbose_name="相关考试",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = "examination_notification"
+        verbose_name = "通知"
+        verbose_name_plural = "通知"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} - {self.user}"

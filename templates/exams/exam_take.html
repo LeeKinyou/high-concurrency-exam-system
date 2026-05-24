@@ -120,5 +120,36 @@ function getCookie(name) {
     const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
     return v ? v[2] : '';
 }
+
+// 防作弊：切屏检测
+let screenSwitchCount = 0;
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        screenSwitchCount++;
+        logAction('screen_switch', `第${screenSwitchCount}次切屏`);
+    }
+});
+
+// 防作弊：复制粘贴检测
+document.addEventListener('copy', function() {
+    logAction('copy', '复制操作');
+});
+document.addEventListener('paste', function(e) {
+    e.preventDefault();
+    logAction('paste', '粘贴操作（已阻止）');
+});
+
+// 防作弊：失去焦点检测
+window.addEventListener('blur', function() {
+    logAction('focus_loss', '窗口失去焦点');
+});
+
+function logAction(action, detail) {
+    fetch(`/exams/${EXAM_ID}/log-action/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({action, detail})
+    }).catch(() => {});
+}
 </script>
 {% endblock %}

@@ -189,3 +189,60 @@ def exam_result(request, exam_id):
         "record": record,
         "result_items": result_items,
     })
+
+
+@require_POST
+@exam_access_required
+def exam_log_action(request, exam_id):
+    """记录考试中的操作（切屏、复制等）"""
+    from .services import AntiCheatService
+
+    try:
+        data = json.loads(request.body)
+        action = data.get("action", "")
+        detail = data.get("detail", "")
+    except (json.JSONDecodeError, TypeError):
+        return error_response(400, "请求格式错误")
+
+    if action not in ["screen_switch", "copy", "paste", "focus_loss", "tab_switch"]:
+        return error_response(400, "无效的操作类型")
+
+    record = ExamService.get_or_create_record(exam_id, request.user)
+    if not record or record.status != "draft":
+        return error_response(400, "考试记录无效")
+
+    AntiCheatService.log_action(
+        record_id=record.id,
+        action=action,
+        detail=detail,
+        ip_address=get_client_ip(request),
+    )
+
+    return success_response(message="已记录")
+
+
+@require_POST
+def notification_mark_read(request, notification_id):
+    """标记通知为已读"""
+    from .services import NotificationService
+
+    if not request.user.is_authenticated:
+        return error_response(401, "请先登录")
+
+    success = NotificationService.mark_as_read(notification_id, request.user)
+    if not success:
+        return error_response(404, "通知不存在")
+
+    return success_response(message="已标记为已读")
+
+
+@require_POST
+def notification_mark_all_read(request):
+    """标记所有通知为已读"""
+    from .services import NotificationService
+
+    if not request.user.is_authenticated:
+        return error_response(401, "请先登录")
+
+    NotificationService.mark_all_as_read(request.user)
+    return success_response(message="已全部标记为已读")

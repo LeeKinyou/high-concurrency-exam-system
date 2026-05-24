@@ -268,3 +268,110 @@ class ClassService:
             class_info_id=class_info_id, student_id=student_id
         )
         return relation
+
+
+class AntiCheatService:
+    """防作弊服务"""
+
+    @staticmethod
+    def log_action(record_id: int, action: str, detail: str = "", ip_address: str = ""):
+        """记录操作审计日志"""
+        from .models import AuditLog
+
+        return AuditLog.objects.create(
+            record_id=record_id,
+            action=action,
+            detail=detail,
+            ip_address=ip_address,
+        )
+
+    @staticmethod
+    def get_audit_logs(record_id: int):
+        """获取考试记录的审计日志"""
+        from .models import AuditLog
+
+        return AuditLog.objects.filter(record_id=record_id).order_by("-created_at")
+
+    @staticmethod
+    def get_suspicious_records(exam_id: int, threshold: int = 5):
+        """获取可疑的考试记录（切屏次数超过阈值）"""
+        from django.db.models import Count
+
+        from .models import AuditLog
+
+        suspicious_record_ids = (
+            AuditLog.objects.filter(
+                record__exam_id=exam_id,
+                action__in=["screen_switch", "tab_switch", "focus_loss"],
+            )
+            .values("record_id")
+            .annotate(switch_count=Count("id"))
+            .filter(switch_count__gte=threshold)
+            .values_list("record_id", flat=True)
+        )
+
+        return ExamRecord.objects.filter(id__in=suspicious_record_ids).select_related("student")
+
+
+class NotificationService:
+    """消息通知服务"""
+
+    @staticmethod
+    def create_notification(user, title: str, content: str, notification_type: str = "system", related_exam=None):
+        """创建通知"""
+        from .models import Notification
+
+        return Notification.objects.create(
+            user=user,
+            title=title,
+            content=content,
+            notification_type=notification_type,
+            related_exam=related_exam,
+        )
+
+    @staticmethod
+    def get_unread_notifications(user):
+        """获取用户未读通知"""
+        from .models import Notification
+
+        return Notification.objects.filter(user=user, is_read=False).order_by("-created_at")
+
+    @staticmethod
+    def mark_as_read(notification_id: int, user):
+        """标记通知为已读"""
+        from .models import Notification
+
+        try:
+            notification = Notification.objects.get(id=notification_id, user=user)
+            notification.is_read = True
+            notification.save(update_fields=["is_read"])
+            return True
+        except Notification.DoesNotExist:
+            return False
+
+    @staticmethod
+    def mark_all_as_read(user):
+        """标记所有通知为已读"""
+        from .models import Notification
+
+        return Notification.objects.filter(user=user, is_read=False).update(is_read=True)
+
+    @staticmethod
+    def notify_exam_created(exam):
+        """通知学生考试创建"""
+        from accounts.models import User
+
+        if exam.visibility == "public":
+            students = User.objects.filter(role="student", is_active=True)
+        else:
+            student_ids = exam.allowed_classes.values_list("student_relations__student_id", flat=True)
+            students = User.objects.filter(id__in=student_ids, is_active=True)
+
+        for student in students:
+            NotificationService.create_notification(
+                user=student,
+                title=f"新考试：{exam.title}",
+                content=f"教师 {exam.created_by.first_name or exam.created_by.username} 创建了新考试「{exam.title}」",
+                notification_type="exam_created",
+                related_exam=exam,
+            )

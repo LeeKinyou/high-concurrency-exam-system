@@ -10,7 +10,7 @@ from core.responses import error_response, success_response
 
 from .excel_importer import import_questions_from_excel
 from .models import ClassInfo, Exam, ExamQuestion, Question
-from .services import ClassService, ExamService, ScoreService
+from .services import AntiCheatService, ClassService, ExamService, ScoreService
 from .utils import generate_exam_qrcode
 
 
@@ -212,4 +212,20 @@ def exam_qrcode(request, exam_id):
     return render(request, "teacher/exam_qrcode.html", {
         "exam": exam,
         "qr_image": qr_image,
+    })
+
+
+@teacher_required
+def audit_logs(request, exam_id):
+    """查看考试审计日志"""
+    try:
+        exam = Exam.objects.get(id=exam_id, created_by=request.user)
+    except Exam.DoesNotExist:
+        return redirect("/teacher/exams/")
+
+    suspicious_records = AntiCheatService.get_suspicious_records(exam_id)
+
+    return render(request, "teacher/audit_logs.html", {
+        "exam": exam,
+        "suspicious_records": suspicious_records,
     })

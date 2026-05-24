@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}审计日志 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>{{ exam.title }} - 审计日志</h2>
+        <a href="/teacher/exams/{{ exam.id }}/edit/" class="btn btn-secondary">返回编辑</a>
+    </div>
+
+    <div class="card" style="padding:20px;margin-bottom:20px">
+        <h3>可疑记录（切屏超过 5 次）</h3>
+        <table style="width:100%;border-collapse:collapse;margin-top:16px">
+            <thead>
+                <tr style="border-bottom:2px solid #eee">
+                    <th style="text-align:left;padding:12px 8px">学号</th>
+                    <th style="text-align:left;padding:12px 8px">姓名</th>
+                    <th style="text-align:center;padding:12px 8px">状态</th>
+                    <th style="text-align:right;padding:12px 8px">得分</th>
+                    <th style="text-align:center;padding:12px 8px">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in suspicious_records %}
+                <tr style="border-bottom:1px solid #f0f0f0">
+                    <td style="padding:12px 8px">{{ record.student.student_id|default:"-" }}</td>
+                    <td style="padding:12px 8px">{{ record.student.first_name|default:record.student.username }}</td>
+                    <td style="text-align:center;padding:12px 8px">
+                        <span style="color:#e74c3c">可疑</span>
+                    </td>
+                    <td style="text-align:right;padding:12px 8px">
+                        {% if record.is_graded %}{{ record.score }}{% else %}-{% endif %}
+                    </td>
+                    <td style="text-align:center;padding:12px 8px">
+                        <a href="#" style="color:#4a90d9;text-decoration:none">查看详情</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center;padding:40px;color:#888">暂无可疑记录</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="padding:20px">
+        <h3>说明</h3>
+        <ul style="color:#666;font-size:14px;line-height:1.8">
+            <li>切屏检测：学生切换浏览器标签页或最小化窗口时记录</li>
+            <li>复制粘贴：学生在考试页面进行复制粘贴操作时记录</li>
+            <li>失去焦点：学生点击浏览器外部区域时记录</li>
+            <li>可疑记录：切屏、切换标签页或失去焦点次数超过 5 次的记录</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

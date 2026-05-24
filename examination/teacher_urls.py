@@ -11,6 +11,7 @@ urlpatterns = [
     path("exams/<int:exam_id>/edit/", teacher_views.exam_edit, name="exam_edit"),
     path("exams/<int:exam_id>/delete/", teacher_views.exam_delete, name="exam_delete"),
     path("exams/<int:exam_id>/qrcode/", teacher_views.exam_qrcode, name="exam_qrcode"),
+    path("exams/<int:exam_id>/audit/", teacher_views.audit_logs, name="audit_logs"),
     path("questions/", teacher_views.question_list, name="question_list"),
     path("api/questions/import/", teacher_views.question_import, name="question_import"),
     path("classes/", teacher_views.class_list, name="class_list"),
