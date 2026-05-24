@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}题目管理 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>题目管理</h2>
+        <form id="import-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center">
+            {% csrf_token %}
+            <input type="file" name="file" accept=".xlsx,.xls" style="font-size:14px">
+            <input type="hidden" name="exam_id" value="">
+            <button type="submit" class="btn btn-primary" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer">导入Excel</button>
+        </form>
+    </div>
+    <div id="import-result" style="display:none;margin-bottom:16px"></div>
+    {% for q in questions %}
+    <div class="card" style="margin-top:8px;padding:14px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+                <span style="font-size:12px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:4px">{{ q.get_question_type_display }}</span>
+                <span style="font-size:12px;color:#888;margin-left:8px">{{ q.get_difficulty_display }}</span>
+                {% if q.exam %}<span style="font-size:12px;color:#888;margin-left:8px">{{ q.exam.title }}</span>{% endif %}
+            </div>
+            <span style="font-weight:bold;color:#4a90d9">{{ q.score }}分</span>
+        </div>
+        <div style="margin-top:8px">{{ q.content|truncatewords:30 }}</div>
+    </div>
+    {% empty %}
+    <p style="color:#888;text-align:center;padding:40px">暂无题目，可通过Excel导入</p>
+    {% endfor %}
+</div>
+<script>
+document.getElementById('import-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('import-result');
+    fetch('/teacher/api/questions/import/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': formData.get('csrfmiddlewaretoken')},
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        resultDiv.style.display = 'block';
+        if (data.code === 200) {
+            resultDiv.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:8px;color:#16a34a">' + data.message + '</div>';
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">' + data.message + '</div>';
+        }
+    })
+    .catch(() => {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">网络错误</div>';
+    });
+});
+</script>
+{% endblock %}

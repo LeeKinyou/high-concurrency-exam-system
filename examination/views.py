@@ -1,0 +1,170 @@
+import json
+
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
+
+from core.constants import UserRole
+from core.responses import error_response, success_response
+from core.utils import get_client_ip
+
+from .decorators import exam_access_required
+from .models import Exam, ExamRecord
+from .services import ExamService
+
+
+def exam_list(request):
+    if not request.user.is_authenticated or request.user.role != UserRole.STUDENT:
+        return redirect("/accounts/login/")
+
+    exams = ExamService.get_available_exams(request.user)
+
+    # 标记学生已参加的考试
+    student_records = {
+        r.exam_id: r
+        for r in ExamRecord.objects.filter(student=request.user).select_related("exam")
+    }
+    exam_data = []
+    for exam in exams:
+        record = student_records.get(exam.id)
+        exam_data.append({
+            "exam": exam,
+            "record": record,
+        })
+
+    return render(request, "exams/exam_list.html", {"exam_data": exam_data})
+
+
+def exam_detail(request, exam_id):
+    if not request.user.is_authenticated or request.user.role != UserRole.STUDENT:
+        return redirect("/accounts/login/")
+
+    try:
+        exam = ExamService.get_exam_detail(exam_id)
+    except Exception:
+        return redirect("/exams/")
+
+    record = ExamService.get_or_create_record(exam_id, request.user)
+    question_count = exam.exam_questions.count()
+
+    return render(request, "exams/exam_detail.html", {
+        "exam": exam,
+        "record": record,
+        "question_count": question_count,
+    })
+
+
+@exam_access_required
+def exam_take(request, exam_id):
+    try:
+        record = ExamService.start_exam(exam_id, request.user)
+    except Exception as e:
+        return redirect(f"/exams/{exam_id}/")
+
+    exam = record.exam
+    exam_questions = exam.exam_questions.select_related("question").order_by("order")
+
+    questions = []
+    for eq in exam_questions:
+        q = eq.question
+        questions.append({
+            "id": q.id,
+            "type": q.question_type,
+            "content": q.content,
+            "options": q.get_options_list(),
+            "score": q.score,
+            "order": eq.order,
+        })
+
+    saved_answers = record.get_answers_dict()
+
+    return render(request, "exams/exam_take.html", {
+        "exam": exam,
+        "record": record,
+        "questions": questions,
+        "saved_answers": json.dumps(saved_answers, ensure_ascii=False),
+    })
+
+
+@require_POST
+@exam_access_required
+def exam_submit(request, exam_id):
+    try:
+        data = json.loads(request.body)
+        answers = data.get("answers", {})
+    except (json.JSONDecodeError, TypeError):
+        return error_response(400, "答案格式错误")
+
+    record = ExamService.get_or_create_record(exam_id, request.user)
+    if not record:
+        return error_response(404, "考试记录不存在")
+
+    # 先保存答案
+    ExamService.save_answers(record.id, answers)
+
+    # 再提交
+    try:
+        record = ExamService.submit_exam(
+            record.id, request.user, get_client_ip(request)
+        )
+    except Exception as e:
+        return error_response(400, str(e))
+
+    return success_response(
+        data={
+            "score": record.score,
+            "total_score": record.total_score,
+            "record_id": record.id,
+        },
+        message="提交成功",
+    )
+
+
+@require_POST
+@exam_access_required
+def exam_save_answer(request, exam_id):
+    try:
+        data = json.loads(request.body)
+        answers = data.get("answers", {})
+    except (json.JSONDecodeError, TypeError):
+        return error_response(400, "答案格式错误")
+
+    record = ExamService.get_or_create_record(exam_id, request.user)
+    if not record:
+        return error_response(404, "考试记录不存在")
+
+    try:
+        ExamService.save_answers(record.id, answers)
+    except Exception as e:
+        return error_response(400, str(e))
+
+    return success_response(message="草稿已保存")
+
+
+@exam_access_required
+def exam_result(request, exam_id):
+    record = ExamService.get_or_create_record(exam_id, request.user)
+    if not record:
+        return redirect(f"/exams/{exam_id}/")
+
+    try:
+        record = ExamService.get_exam_result(record.id, request.user)
+    except Exception:
+        return redirect(f"/exams/{exam_id}/")
+
+    details = record.get_grading_details_dict()
+    exam_questions = record.exam.exam_questions.select_related("question").order_by("order")
+
+    result_items = []
+    for eq in exam_questions:
+        q = eq.question
+        detail = details.get(str(q.id), {})
+        result_items.append({
+            "question": q,
+            "detail": detail,
+        })
+
+    return render(request, "exams/exam_result.html", {
+        "exam": record.exam,
+        "record": record,
+        "result_items": result_items,
+    })

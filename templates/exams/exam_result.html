@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}成绩 - {{ exam.title }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px">
+    <div class="card" style="margin-top:20px;text-align:center;padding:30px">
+        <h2>{{ exam.title }}</h2>
+        <div style="margin:20px 0">
+            <span style="font-size:48px;font-weight:bold;color:#4a90d9">{{ record.score }}</span>
+            <span style="font-size:20px;color:#888"> / {{ record.total_score }}</span>
+        </div>
+        <p style="color:#888">提交时间: {{ record.submit_time|date:"Y-m-d H:i" }}</p>
+    </div>
+    {% for item in result_items %}
+    <div class="card" style="margin-top:12px;padding:20px;border-left:4px solid {% if item.detail.correct %}#27ae60{% else %}#e74c3c{% endif %}">
+        <div style="font-size:13px;color:#888;margin-bottom:8px">{{ item.question.content }}</div>
+        <div style="font-size:14px">
+            <span style="color:{% if item.detail.correct %}#27ae60{% else %}#e74c3c{% endif %}">
+                {% if item.detail.correct %}✓ 正确{% else %}✗ 错误{% endif %}
+            </span>
+            <span style="margin-left:12px;color:#888">得分: {{ item.detail.score }}分</span>
+        </div>
+        <div style="margin-top:8px;font-size:13px">
+            <span style="color:#888">你的答案:</span> {{ item.detail.got|default:"未作答" }}
+            {% if not item.detail.correct %}
+            <span style="margin-left:12px;color:#888">正确答案:</span> <span style="color:#27ae60">{{ item.detail.expected }}</span>
+            {% endif %}
+        </div>
+        {% if item.question.explanation %}
+        <div style="margin-top:8px;font-size:13px;color:#666;background:#f8f9fa;padding:8px;border-radius:4px">解析: {{ item.question.explanation }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    <div style="margin:20px 0;text-align:center">
+        <a href="/exams/" class="btn btn-primary" style="padding:10px 30px;border-radius:6px;text-decoration:none;display:inline-block">返回考试列表</a>
+    </div>
+</div>
+{% endblock %}

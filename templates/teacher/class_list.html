@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}班级管理 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>班级管理</h2>
+    </div>
+    {% for item in class_data %}
+    <div class="card" style="margin-top:12px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3>{{ item.class_info.name }}</h3>
+            <span style="color:#888;font-size:14px">{{ item.student_count }}名学生</span>
+        </div>
+        {% if item.class_info.description %}
+        <p style="color:#888;font-size:14px;margin-top:4px">{{ item.class_info.description }}</p>
+        {% endif %}
+        {% if item.students %}
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+            {% for s in item.students %}
+            <span style="background:#f0f4f8;padding:4px 12px;border-radius:12px;font-size:13px">{{ s.first_name|default:s.username }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <p style="color:#888;text-align:center;padding:40px">暂无班级</p>
+    {% endfor %}
+</div>
+{% endblock %}

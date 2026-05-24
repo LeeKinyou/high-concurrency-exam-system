@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }} - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:700px">
+    <div class="card" style="margin-top:30px">
+        <h1 style="font-size:22px">{{ exam.title }}</h1>
+        <p style="color:#888;margin-top:8px">{{ exam.description }}</p>
+        <div style="margin:20px 0;padding:16px;background:#f8f9fa;border-radius:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+                <div><strong>考试码:</strong> {{ exam.exam_code }}</div>
+                <div><strong>题目数:</strong> {{ question_count }} 题</div>
+                <div><strong>时长:</strong> {{ exam.duration }} 分钟</div>
+                <div><strong>满分:</strong> {{ exam.total_score }} 分</div>
+                {% if exam.start_time %}<div><strong>开始时间:</strong> {{ exam.start_time|date:"Y-m-d H:i" }}</div>{% endif %}
+                {% if exam.end_time %}<div><strong>结束时间:</strong> {{ exam.end_time|date:"Y-m-d H:i" }}</div>{% endif %}
+            </div>
+        </div>
+        {% if record %}
+            {% if record.is_graded %}
+            <a href="/exams/{{ exam.id }}/result/" class="btn" style="background:#27ae60;color:#fff;padding:12px;border-radius:8px;text-decoration:none;display:block;text-align:center">查看成绩</a>
+            {% elif record.status == "draft" %}
+            <a href="/exams/{{ exam.id }}/take/" class="btn btn-primary" style="padding:12px;border-radius:8px;text-decoration:none;display:block;text-align:center">开始答题</a>
+            {% else %}
+            <p style="text-align:center;color:#f39c12">答卷已提交，等待评分</p>
+            {% endif %}
+        {% else %}
+            {% if exam.is_started and not exam.is_ended %}
+            <a href="/exams/{{ exam.id }}/take/" class="btn btn-primary" style="padding:12px;border-radius:8px;text-decoration:none;display:block;text-align:center">开始答题</a>
+            {% elif not exam.is_started %}
+            <p style="text-align:center;color:#888">考试尚未开始</p>
+            {% else %}
+            <p style="text-align:center;color:#e74c3c">考试已结束</p>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

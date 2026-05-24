@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }} - 答题{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0;position:sticky;top:0;background:#f5f7fa;padding:10px 0;z-index:10">
+        <h2>{{ exam.title }}</h2>
+        <div style="display:flex;align-items:center;gap:16px">
+            <span id="timer" style="font-size:18px;font-weight:bold;color:#e74c3c"></span>
+            <button onclick="submitExam()" class="btn btn-primary" style="padding:8px 24px;border:none;border-radius:6px;cursor:pointer">交卷</button>
+        </div>
+    </div>
+    <form id="exam-form">
+        {% for q in questions %}
+        <div class="card" style="margin-top:12px;padding:20px" id="question-{{ q.id }}">
+            <div style="font-size:13px;color:#888;margin-bottom:8px">第{{ q.order }}题 ({{ q.score }}分)</div>
+            <div style="font-size:16px;margin-bottom:16px">{{ q.content }}</div>
+            {% if q.type == "choice" %}
+            {% for opt in q.options %}
+            <label style="display:block;padding:10px 14px;margin-bottom:6px;border:1px solid #ddd;border-radius:6px;cursor:pointer;transition:all 0.2s" onclick="selectOption(this)">
+                <input type="radio" name="question_{{ q.id }}" value="{{ opt.label }}" style="margin-right:8px">
+                <strong>{{ opt.label }}.</strong> {{ opt.text }}
+            </label>
+            {% endfor %}
+            {% else %}
+            <input type="text" name="question_{{ q.id }}" placeholder="请输入答案（多空用逗号分隔）" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:15px">
+            {% endif %}
+        </div>
+        {% endfor %}
+    </form>
+</div>
+<script>
+const SAVED = {{ saved_answers|safe }};
+const RECORD_ID = {{ record.id }};
+const EXAM_ID = {{ exam.id }};
+const DURATION = {{ exam.duration }} * 60;
+
+// 初始化已保存的答案
+document.addEventListener('DOMContentLoaded', function() {
+    for (const [qid, ans] of Object.entries(SAVED)) {
+        const inputs = document.querySelectorAll(`[name="question_${qid}"]`);
+        inputs.forEach(input => {
+            if (input.type === 'radio') {
+                if (input.value === ans) input.checked = true;
+            } else {
+                input.value = ans;
+            }
+        });
+    }
+    startTimer();
+});
+
+function selectOption(label) {
+    label.style.borderColor = '#4a90d9';
+    label.style.background = '#eef4fb';
+    const siblings = label.parentElement.querySelectorAll('label');
+    siblings.forEach(l => { if (l !== label) { l.style.borderColor = '#ddd'; l.style.background = ''; }});
+}
+
+function getAnswers() {
+    const answers = {};
+    const form = document.getElementById('exam-form');
+    const radios = form.querySelectorAll('input[type="radio"]:checked');
+    radios.forEach(r => {
+        const qid = r.name.replace('question_', '');
+        answers[qid] = r.value;
+    });
+    const texts = form.querySelectorAll('input[type="text"]');
+    texts.forEach(t => {
+        if (t.value.trim()) {
+            const qid = t.name.replace('question_', '');
+            answers[qid] = t.value.trim();
+        }
+    });
+    return answers;
+}
+
+// 草稿自动保存
+setInterval(() => {
+    const answers = getAnswers();
+    fetch(`/exams/${EXAM_ID}/save-answer/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({answers})
+    });
+}, 30000);
+
+function submitExam() {
+    if (!confirm('确认交卷？交卷后无法修改。')) return;
+    const answers = getAnswers();
+    fetch(`/exams/${EXAM_ID}/submit/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({answers})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.code === 200) {
+            window.location.href = `/exams/${EXAM_ID}/result/`;
+        } else {
+            alert(data.message || '提交失败');
+        }
+    })
+    .catch(() => alert('网络错误，请重试'));
+}
+
+// 倒计时
+let remaining = DURATION;
+function startTimer() {
+    const timerEl = document.getElementById('timer');
+    setInterval(() => {
+        if (remaining <= 0) { submitExam(); return; }
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        remaining--;
+    }, 1000);
+}
+
+function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : '';
+}
+</script>
+{% endblock %}

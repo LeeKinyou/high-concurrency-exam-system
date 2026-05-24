@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}考试列表 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>考试列表</h2>
+        <a href="/accounts/logout/" style="color:#e74c3c;text-decoration:none">退出登录</a>
+    </div>
+    {% if exam_data %}
+    {% for item in exam_data %}
+    <div class="card" style="margin-top:12px;padding:20px">
+        <h3 style="margin-bottom:8px">{{ item.exam.title }}</h3>
+        <p style="color:#888;font-size:14px;margin-bottom:12px">{{ item.exam.description|truncatewords:20 }}</p>
+        <div style="display:flex;gap:16px;font-size:13px;color:#666;margin-bottom:12px">
+            <span>时长: {{ item.exam.duration }}分钟</span>
+            <span>满分: {{ item.exam.total_score }}分</span>
+            {% if item.exam.start_time %}<span>开始: {{ item.exam.start_time|date:"Y-m-d H:i" }}</span>{% endif %}
+            {% if item.exam.end_time %}<span>结束: {{ item.exam.end_time|date:"Y-m-d H:i" }}</span>{% endif %}
+        </div>
+        {% if item.record %}
+            {% if item.record.is_graded %}
+            <a href="/exams/{{ item.exam.id }}/result/" class="btn" style="background:#27ae60;color:#fff;padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block">查看成绩 ({{ item.record.score }}分)</a>
+            {% else %}
+            <a href="/exams/{{ item.exam.id }}/take/" class="btn" style="background:#f39c12;color:#fff;padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block">继续答题</a>
+            {% endif %}
+        {% else %}
+        <a href="/exams/{{ item.exam.id }}/" class="btn btn-primary" style="padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block">进入考试</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="card" style="margin-top:20px;text-align:center;padding:40px">
+        <p style="color:#888">暂无可用考试</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

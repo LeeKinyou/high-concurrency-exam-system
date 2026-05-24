@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}考试管理 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>考试管理</h2>
+        <a href="/teacher/exams/create/" class="btn btn-primary" style="padding:8px 20px;border-radius:6px;text-decoration:none">创建考试</a>
+    </div>
+    {% for exam in exams %}
+    <div class="card" style="margin-top:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+            <strong>{{ exam.title }}</strong>
+            {% if not exam.is_active %}<span style="color:#e74c3c;font-size:12px;margin-left:8px">已停用</span>{% endif %}
+            <div style="font-size:13px;color:#888;margin-top:4px">
+                考试码: {{ exam.exam_code }} | 时长: {{ exam.duration }}分钟 | 满分: {{ exam.total_score }}分
+            </div>
+        </div>
+        <div style="display:flex;gap:12px">
+            <a href="/teacher/exams/{{ exam.id }}/edit/" style="color:#4a90d9;text-decoration:none">编辑</a>
+            <form method="post" action="/teacher/exams/{{ exam.id }}/delete/" style="display:inline" onsubmit="return confirm('确认停用？')">
+                {% csrf_token %}
+                <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer">停用</button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+    <p style="color:#888;text-align:center;padding:40px">暂无考试</p>
+    {% endfor %}
+</div>
+{% endblock %}
