@@ -6,7 +6,7 @@
         <h2>教师仪表盘</h2>
         <a href="/accounts/logout/" style="color:#e74c3c;text-decoration:none">退出登录</a>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:24px">
         <div class="card" style="text-align:center;padding:20px">
             <div style="font-size:32px;font-weight:bold;color:#4a90d9">{{ exam_count }}</div>
             <div style="color:#888;font-size:14px">考试数</div>
@@ -19,13 +19,17 @@
             <div style="font-size:32px;font-weight:bold;color:#f39c12">{{ classes|length }}</div>
             <div style="color:#888;font-size:14px">班级数</div>
         </div>
+        <div class="card" style="text-align:center;padding:20px">
+            <div style="font-size:32px;font-weight:bold;color:#9b59b6">{{ student_count }}</div>
+            <div style="color:#888;font-size:14px">学生数</div>
+        </div>
     </div>
-    <div style="display:flex;gap:12px;margin-bottom:24px">
-        <a href="/teacher/exams/create/" class="btn btn-primary" style="padding:10px 20px;border-radius:6px;text-decoration:none">创建考试</a>
-        <a href="/teacher/exams/" class="btn" style="padding:10px 20px;border-radius:6px;text-decoration:none;border:1px solid #ddd">管理考试</a>
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+        <a href="/teacher/exams/" class="btn btn-primary" style="padding:10px 20px;border-radius:6px;text-decoration:none">考试管理</a>
         <a href="/teacher/questions/" class="btn" style="padding:10px 20px;border-radius:6px;text-decoration:none;border:1px solid #ddd">题目管理</a>
         <a href="/teacher/scores/" class="btn" style="padding:10px 20px;border-radius:6px;text-decoration:none;border:1px solid #ddd">成绩管理</a>
         <a href="/teacher/classes/" class="btn" style="padding:10px 20px;border-radius:6px;text-decoration:none;border:1px solid #ddd">班级管理</a>
+        <a href="/teacher/students/" class="btn" style="padding:10px 20px;border-radius:6px;text-decoration:none;border:1px solid #ddd">学生管理</a>
     </div>
     <h3 style="margin-bottom:12px">最近创建的考试</h3>
     {% for exam in exams %}
@@ -37,7 +41,7 @@
         <a href="/teacher/exams/{{ exam.id }}/edit/" style="color:#4a90d9;text-decoration:none;font-size:14px">编辑</a>
     </div>
     {% empty %}
-    <p style="color:#888;text-align:center;padding:20px">暂无考试</p>
+    <p style="color:#888;text-align:center;padding:20px">暂无考试，前往"考试管理"创建</p>
     {% endfor %}
 </div>
 {% endblock %}

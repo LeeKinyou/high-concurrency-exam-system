@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}学生管理 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>学生管理</h2>
+        <a href="/accounts/upload-students/" class="btn btn-primary" style="padding:8px 20px;border-radius:6px;text-decoration:none">批量导入</a>
+    </div>
+
+    <div class="card" style="padding:16px;margin-bottom:20px">
+        <form method="get" style="display:flex;gap:12px">
+            <input type="text" name="q" value="{{ keyword }}" placeholder="搜索学号、姓名、用户名" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+            <button type="submit" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">搜索</button>
+            {% if keyword %}
+            <a href="/teacher/students/" class="btn" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;text-decoration:none">清除</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="card" style="padding:20px">
+        <table style="width:100%;border-collapse:collapse">
+            <thead>
+                <tr style="border-bottom:2px solid #eee">
+                    <th style="text-align:left;padding:12px 8px">学号</th>
+                    <th style="text-align:left;padding:12px 8px">用户名</th>
+                    <th style="text-align:left;padding:12px 8px">姓名</th>
+                    <th style="text-align:left;padding:12px 8px">邮箱</th>
+                    <th style="text-align:center;padding:12px 8px">状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr style="border-bottom:1px solid #f0f0f0">
+                    <td style="padding:12px 8px">{{ student.student_id|default:"-" }}</td>
+                    <td style="padding:12px 8px">{{ student.username }}</td>
+                    <td style="padding:12px 8px">{{ student.first_name|default:"-" }}</td>
+                    <td style="padding:12px 8px">{{ student.email|default:"-" }}</td>
+                    <td style="text-align:center;padding:12px 8px">
+                        {% if student.is_active %}
+                        <span style="color:#34a853">正常</span>
+                        {% else %}
+                        <span style="color:#e74c3c">已禁用</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center;padding:40px;color:#888">
+                        {% if keyword %}未找到匹配的学生{% else %}暂无学生，可通过"批量导入"添加{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

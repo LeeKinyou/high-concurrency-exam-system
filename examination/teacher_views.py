@@ -1,5 +1,7 @@
+import io
 import json
 
+from django.db import models
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
@@ -16,16 +18,20 @@ from .utils import generate_exam_qrcode
 
 @teacher_required
 def dashboard(request):
+    from accounts.models import User
+
     exams = Exam.objects.filter(created_by=request.user, is_active=True).order_by("-created_at")[:5]
     classes = ClassService.get_classes_for_teacher(request.user)
     exam_count = Exam.objects.filter(created_by=request.user, is_active=True).count()
     question_count = Question.objects.filter(exam__created_by=request.user).count()
+    student_count = User.objects.filter(role="student", is_active=True).count()
 
     return render(request, "teacher/dashboard.html", {
         "exams": exams,
         "classes": classes,
         "exam_count": exam_count,
         "question_count": question_count,
+        "student_count": student_count,
     })
 
 
@@ -130,7 +136,56 @@ def question_list(request):
         .select_related("exam")
         .order_by("-id")[:100]
     )
-    return render(request, "teacher/question_list.html", {"questions": questions})
+    exams = Exam.objects.filter(created_by=request.user, is_active=True)
+    return render(request, "teacher/question_list.html", {"questions": questions, "exams": exams})
+
+
+@teacher_required
+def question_create(request):
+    """手动创建题目"""
+    if request.method == "POST":
+        exam_id = request.POST.get("exam_id")
+        q_type = request.POST.get("question_type", "choice")
+        content = request.POST.get("content", "").strip()
+        answer = request.POST.get("answer", "").strip()
+        score = int(request.POST.get("score", 10))
+        difficulty = request.POST.get("difficulty", "medium")
+        explanation = request.POST.get("explanation", "").strip()
+
+        if not content or not answer:
+            exams = Exam.objects.filter(created_by=request.user, is_active=True)
+            return render(request, "teacher/question_create.html", {"error": "题干和答案不能为空", "exams": exams})
+
+        options = []
+        if q_type == "choice":
+            for label in ["A", "B", "C", "D"]:
+                opt_text = request.POST.get(f"option_{label}", "").strip()
+                if opt_text:
+                    options.append({"label": label, "text": opt_text})
+
+        exam = None
+        if exam_id:
+            exam = Exam.objects.get(id=int(exam_id))
+
+        question = Question.objects.create(
+            exam=exam,
+            question_type=q_type,
+            content=content,
+            options=json.dumps(options, ensure_ascii=False) if options else "[]",
+            answer=answer,
+            score=score,
+            difficulty=difficulty,
+            explanation=explanation,
+        )
+
+        if exam:
+            order = exam.exam_questions.count() + 1
+            ExamQuestion.objects.create(exam=exam, question=question, order=order)
+
+        return redirect("/teacher/questions/")
+
+    exams = Exam.objects.filter(created_by=request.user, is_active=True)
+    return render(request, "teacher/question_create.html", {"exams": exams})
 
 
 @teacher_required
@@ -154,6 +209,36 @@ def question_import(request):
 
 
 @teacher_required
+def question_sample_excel(request):
+    """下载题目导入模板"""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "题目导入模板"
+
+    headers = ["题型", "题干", "选项A", "选项B", "选项C", "选项D", "正确答案", "分值", "难度", "解析"]
+    ws.append(headers)
+
+    # 示例数据
+    ws.append(["choice", "1+1=?", "1", "2", "3", "4", "B", 10, "easy", ""])
+    ws.append(["choice", "Python是哪种类型的语言？", "编译型", "解释型", "汇编型", "机器语言", "B", 10, "easy", ""])
+    ws.append(["blank", "中国的首都是___", "", "", "", "", "北京", 10, "easy", ""])
+    ws.append(["blank", "2+3=___", "", "", "", "", "5", 10, "easy", ""])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="题目导入模板.xlsx"'
+    return response
+
+
+@teacher_required
 def class_list(request):
     classes = ClassService.get_classes_for_teacher(request.user)
     class_data = []
@@ -162,6 +247,85 @@ def class_list(request):
         class_data.append({"class_info": cls, "students": students, "student_count": students.count()})
 
     return render(request, "teacher/class_list.html", {"class_data": class_data})
+
+
+@teacher_required
+@require_POST
+def class_create(request):
+    """创建班级"""
+    name = request.POST.get("name", "").strip()
+    description = request.POST.get("description", "").strip()
+
+    if not name:
+        return redirect("/teacher/classes/")
+
+    ClassService.create_class(request.user, name, description)
+    return redirect("/teacher/classes/")
+
+
+@teacher_required
+@require_POST
+def class_edit(request, class_id):
+    """编辑班级"""
+    try:
+        cls = ClassInfo.objects.get(id=class_id, teacher=request.user)
+    except ClassInfo.DoesNotExist:
+        return redirect("/teacher/classes/")
+
+    cls.name = request.POST.get("name", cls.name).strip()
+    cls.description = request.POST.get("description", "").strip()
+    cls.save()
+
+    return redirect("/teacher/classes/")
+
+
+@teacher_required
+@require_POST
+def class_delete(request, class_id):
+    """删除班级（软删除）"""
+    try:
+        cls = ClassInfo.objects.get(id=class_id, teacher=request.user)
+        cls.is_active = False
+        cls.save(update_fields=["is_active"])
+    except ClassInfo.DoesNotExist:
+        pass
+    return redirect("/teacher/classes/")
+
+
+@teacher_required
+@require_POST
+def class_add_student(request, class_id):
+    """向班级添加学生"""
+    try:
+        cls = ClassInfo.objects.get(id=class_id, teacher=request.user)
+    except ClassInfo.DoesNotExist:
+        return redirect("/teacher/classes/")
+
+    student_id = request.POST.get("student_id", "").strip()
+    if not student_id:
+        return redirect("/teacher/classes/")
+
+    try:
+        from accounts.models import User
+        student = User.objects.get(student_id=student_id, role="student", is_active=True)
+        ClassService.add_student_to_class(cls.id, student.id)
+    except Exception:
+        pass
+
+    return redirect("/teacher/classes/")
+
+
+@teacher_required
+@require_POST
+def class_remove_student(request, class_id, student_id):
+    """从班级移除学生"""
+    try:
+        cls = ClassInfo.objects.get(id=class_id, teacher=request.user)
+        from examination.models import StudentClassRelation
+        StudentClassRelation.objects.filter(class_info=cls, student_id=student_id).delete()
+    except Exception:
+        pass
+    return redirect("/teacher/classes/")
 
 
 @teacher_required
@@ -228,4 +392,26 @@ def audit_logs(request, exam_id):
     return render(request, "teacher/audit_logs.html", {
         "exam": exam,
         "suspicious_records": suspicious_records,
+    })
+
+
+@teacher_required
+def student_list(request):
+    """学生管理页面"""
+    from accounts.models import User
+
+    students = User.objects.filter(role="student", is_active=True).order_by("-date_joined")
+
+    # 搜索
+    keyword = request.GET.get("q", "").strip()
+    if keyword:
+        students = students.filter(
+            models.Q(username__icontains=keyword) |
+            models.Q(first_name__icontains=keyword) |
+            models.Q(student_id__icontains=keyword)
+        )
+
+    return render(request, "teacher/student_list.html", {
+        "students": students,
+        "keyword": keyword,
     })

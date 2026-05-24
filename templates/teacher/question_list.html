@@ -4,14 +4,32 @@
 <div class="container" style="max-width:900px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
         <h2>题目管理</h2>
-        <form id="import-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center">
-            {% csrf_token %}
-            <input type="file" name="file" accept=".xlsx,.xls" style="font-size:14px">
-            <input type="hidden" name="exam_id" value="">
-            <button type="submit" class="btn btn-primary" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer">导入Excel</button>
-        </form>
+        <div style="display:flex;gap:8px">
+            <a href="/teacher/questions/create/" class="btn btn-primary" style="padding:8px 16px;border:none;border-radius:6px;text-decoration:none">手动创建</a>
+            <button onclick="showImportForm()" class="btn" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;cursor:pointer">Excel导入</button>
+            <a href="/teacher/api/questions/sample/" class="btn" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;text-decoration:none">下载模板</a>
+        </div>
     </div>
-    <div id="import-result" style="display:none;margin-bottom:16px"></div>
+
+    <!-- Excel 导入表单 -->
+    <div id="import-form" class="card" style="padding:20px;margin-bottom:20px;display:none">
+        <h3>Excel 导入题目</h3>
+        <p style="color:#888;font-size:14px;margin:8px 0">请先下载模板，按照模板格式填写后上传</p>
+        <form id="import-submit-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:12px">
+            {% csrf_token %}
+            <select name="exam_id" style="padding:8px;border:1px solid #ddd;border-radius:6px">
+                <option value="">不关联考试</option>
+                {% for exam in exams %}
+                <option value="{{ exam.id }}">{{ exam.title }}</option>
+                {% endfor %}
+            </select>
+            <input type="file" name="file" accept=".xlsx,.xls" required style="font-size:14px">
+            <button type="submit" class="btn btn-primary" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer">开始导入</button>
+            <button type="button" onclick="hideImportForm()" class="btn" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;cursor:pointer">取消</button>
+        </form>
+        <div id="import-result" style="display:none;margin-top:12px"></div>
+    </div>
+
     {% for q in questions %}
     <div class="card" style="margin-top:8px;padding:14px 20px">
         <div style="display:flex;justify-content:space-between;align-items:start">
@@ -25,11 +43,18 @@
         <div style="margin-top:8px">{{ q.content|truncatewords:30 }}</div>
     </div>
     {% empty %}
-    <p style="color:#888;text-align:center;padding:40px">暂无题目，可通过Excel导入</p>
+    <p style="color:#888;text-align:center;padding:40px">暂无题目，点击"手动创建"或"Excel导入"添加</p>
     {% endfor %}
 </div>
 <script>
-document.getElementById('import-form').addEventListener('submit', function(e) {
+function showImportForm() {
+    document.getElementById('import-form').style.display = 'block';
+}
+function hideImportForm() {
+    document.getElementById('import-form').style.display = 'none';
+}
+
+document.getElementById('import-submit-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     const resultDiv = document.getElementById('import-result');

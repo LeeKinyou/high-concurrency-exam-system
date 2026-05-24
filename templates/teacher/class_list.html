@@ -1,29 +1,124 @@
 {% extends "base.html" %}
 {% block title %}班级管理 - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:900px">
+<div class="container" style="max-width:1000px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
         <h2>班级管理</h2>
+        <button onclick="showCreateForm()" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">创建班级</button>
     </div>
+
+    <!-- 创建班级表单 -->
+    <div id="create-form" class="card" style="padding:20px;margin-bottom:20px;display:none">
+        <h3>创建班级</h3>
+        <form method="post" action="/teacher/classes/create/" style="margin-top:12px">
+            {% csrf_token %}
+            <div style="margin-bottom:12px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">班级名称 *</label>
+                <input type="text" name="name" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="例如：计科2024级1班">
+            </div>
+            <div style="margin-bottom:12px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">描述</label>
+                <textarea name="description" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="可选"></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">保存</button>
+                <button type="button" onclick="hideCreateForm()" class="btn" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;cursor:pointer">取消</button>
+            </div>
+        </form>
+    </div>
+
     {% for item in class_data %}
-    <div class="card" style="margin-top:12px;padding:20px">
+    <div class="card" style="margin-top:12px;padding:20px" id="class-{{ item.class_info.id }}">
         <div style="display:flex;justify-content:space-between;align-items:center">
-            <h3>{{ item.class_info.name }}</h3>
-            <span style="color:#888;font-size:14px">{{ item.student_count }}名学生</span>
+            <div>
+                <h3 style="margin:0">{{ item.class_info.name }}</h3>
+                <span style="color:#888;font-size:14px">{{ item.student_count }}名学生</span>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button onclick="showAddStudent({{ item.class_info.id }})" style="background:#34a853;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">添加学生</button>
+                <button onclick="showEditForm({{ item.class_info.id }}, '{{ item.class_info.name }}', '{{ item.class_info.description }}')" style="background:#4a90d9;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">编辑</button>
+                <form method="post" action="/teacher/classes/{{ item.class_info.id }}/delete/" style="display:inline" onsubmit="return confirm('确认删除该班级？')">
+                    {% csrf_token %}
+                    <button type="submit" style="background:#e74c3c;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">删除</button>
+                </form>
+            </div>
         </div>
+
+        <!-- 添加学生表单 -->
+        <div id="add-student-{{ item.class_info.id }}" style="display:none;margin-top:12px;padding:12px;background:#f0f4f8;border-radius:8px">
+            <form method="post" action="/teacher/classes/{{ item.class_info.id }}/add-student/" style="display:flex;gap:8px">
+                {% csrf_token %}
+                <input type="text" name="student_id" placeholder="输入学号" required style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+                <button type="submit" style="background:#34a853;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">添加</button>
+                <button type="button" onclick="hideAddStudent({{ item.class_info.id }})" style="background:#888;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">取消</button>
+            </form>
+        </div>
+
         {% if item.class_info.description %}
-        <p style="color:#888;font-size:14px;margin-top:4px">{{ item.class_info.description }}</p>
+        <p style="color:#888;font-size:14px;margin-top:8px">{{ item.class_info.description }}</p>
         {% endif %}
+
         {% if item.students %}
         <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
             {% for s in item.students %}
-            <span style="background:#f0f4f8;padding:4px 12px;border-radius:12px;font-size:13px">{{ s.first_name|default:s.username }}</span>
+            <span style="background:#f0f4f8;padding:6px 12px;border-radius:16px;font-size:13px;display:flex;align-items:center;gap:6px">
+                {{ s.first_name|default:s.username }}
+                {% if s.student_id %}<span style="color:#888;font-size:11px">({{ s.student_id }})</span>{% endif %}
+                <form method="post" action="/teacher/classes/{{ item.class_info.id }}/remove-student/{{ s.id }}/" style="display:inline" onsubmit="return confirm('确认移除该学生？')">
+                    {% csrf_token %}
+                    <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0;margin-left:4px">×</button>
+                </form>
+            </span>
             {% endfor %}
         </div>
         {% endif %}
     </div>
+
+    <!-- 编辑表单（隐藏） -->
+    <div id="edit-form-{{ item.class_info.id }}" class="card" style="padding:20px;margin-top:12px;display:none">
+        <h3>编辑班级</h3>
+        <form method="post" action="/teacher/classes/{{ item.class_info.id }}/edit/" style="margin-top:12px">
+            {% csrf_token %}
+            <div style="margin-bottom:12px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">班级名称 *</label>
+                <input type="text" name="name" id="edit-name-{{ item.class_info.id }}" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+            </div>
+            <div style="margin-bottom:12px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">描述</label>
+                <textarea name="description" id="edit-desc-{{ item.class_info.id }}" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px"></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">保存</button>
+                <button type="button" onclick="hideEditForm({{ item.class_info.id }})" class="btn" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;cursor:pointer">取消</button>
+            </div>
+        </form>
+    </div>
     {% empty %}
-    <p style="color:#888;text-align:center;padding:40px">暂无班级</p>
+    <p style="color:#888;text-align:center;padding:40px">暂无班级，点击"创建班级"开始</p>
     {% endfor %}
 </div>
+<script>
+function showCreateForm() {
+    document.getElementById('create-form').style.display = 'block';
+}
+function hideCreateForm() {
+    document.getElementById('create-form').style.display = 'none';
+}
+function showEditForm(id, name, desc) {
+    document.getElementById('edit-form-' + id).style.display = 'block';
+    document.getElementById('edit-name-' + id).value = name;
+    document.getElementById('edit-desc-' + id).value = desc;
+    document.getElementById('class-' + id).style.display = 'none';
+}
+function hideEditForm(id) {
+    document.getElementById('edit-form-' + id).style.display = 'none';
+    document.getElementById('class-' + id).style.display = 'block';
+}
+function showAddStudent(id) {
+    document.getElementById('add-student-' + id).style.display = 'block';
+}
+function hideAddStudent(id) {
+    document.getElementById('add-student-' + id).style.display = 'none';
+}
+</script>
 {% endblock %}

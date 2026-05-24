@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}创建题目 - 在线考试系统{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
+        <h2>创建题目</h2>
+        <a href="/teacher/questions/" class="btn btn-secondary">返回题目列表</a>
+    </div>
+
+    {% if error %}
+    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c;margin-bottom:16px">{{ error }}</div>
+    {% endif %}
+
+    <div class="card" style="padding:24px">
+        <form method="post" id="question-form">
+            {% csrf_token %}
+
+            <div style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">关联考试</label>
+                <select name="exam_id" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+                    <option value="">不关联（通用题目）</option>
+                    {% for exam in exams %}
+                    <option value="{{ exam.id }}">{{ exam.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">题型 *</label>
+                <select name="question_type" id="q-type" onchange="toggleOptions()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+                    <option value="choice">选择题</option>
+                    <option value="blank">填空题</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">题干 *</label>
+                <textarea name="content" rows="3" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="请输入题目内容，填空题用 ___ 表示空格"></textarea>
+            </div>
+
+            <div id="options-area" style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">选项</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-weight:bold;min-width:20px">A</span>
+                        <input type="text" name="option_A" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-weight:bold;min-width:20px">B</span>
+                        <input type="text" name="option_B" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-weight:bold;min-width:20px">C</span>
+                        <input type="text" name="option_C" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-weight:bold;min-width:20px">D</span>
+                        <input type="text" name="option_D" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">正确答案 *</label>
+                <input type="text" name="answer" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="选择题填选项字母（如 B），填空题填正确答案（多答案用 | 分隔）">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                <div>
+                    <label style="display:block;margin-bottom:4px;font-weight:bold">分值</label>
+                    <input type="number" name="score" value="10" min="1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:4px;font-weight:bold">难度</label>
+                    <select name="difficulty" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+                        <option value="easy">简单</option>
+                        <option value="medium" selected>中等</option>
+                        <option value="hard">困难</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom:16px">
+                <label style="display:block;margin-bottom:4px;font-weight:bold">解析</label>
+                <textarea name="explanation" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="可选，用于学生查看答案解析"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;border:none;border-radius:6px;cursor:pointer;font-size:16px">创建题目</button>
+        </form>
+    </div>
+</div>
+<script>
+function toggleOptions() {
+    const type = document.getElementById('q-type').value;
+    document.getElementById('options-area').style.display = type === 'choice' ? 'block' : 'none';
+}
+</script>
+{% endblock %}
