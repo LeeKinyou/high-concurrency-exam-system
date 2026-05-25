@@ -81,10 +81,10 @@
             <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] transition-all">
                 搜索
             </button>
-            {% if keyword %}
-            <a href="/teacher/students/" class="px-4 py-2.5 rounded-xl text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all">清除</a>
-            {% endif %}
         </form>
+        {% if keyword %}
+        <a href="/teacher/students/" class="px-4 py-2.5 rounded-xl text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all">清除</a>
+        {% endif %}
 
         <!-- Student Cards -->
         {% for student in students %}
