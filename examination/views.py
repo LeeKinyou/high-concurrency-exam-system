@@ -7,9 +7,16 @@ from core.constants import UserRole
 from core.responses import error_response, success_response
 from core.utils import get_client_ip
 
+from accounts.decorators import student_required
 from .decorators import exam_access_required
 from .models import Exam, ExamRecord
 from .services import ExamService
+
+
+@student_required
+def student_dashboard(request):
+    """学生个人成长雷达仪表盘"""
+    return render(request, "student/dashboard.html")
 
 
 @require_POST

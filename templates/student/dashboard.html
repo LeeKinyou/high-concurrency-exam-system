@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+{% block title %}个人成长雷达 - 学生仪表盘{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    teal: { 50: '#f0fdfa', 100: '#ccfbf1', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488' },
+                    purple: { 50: '#faf5ff', 100: '#f3e8ff', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea' },
+                    slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 800: '#1e293b' }
+                }
+            }
+        }
+    }
+</script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+    /* Override base.html body styles to prevent conflicts */
+    body {
+        font-family: 'Noto Sans SC', sans-serif !important;
+        background: #f8fafc !important;
+        color: #1e293b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 100vh !important;
+    }
+
+    /* Remove base.html container constraints */
+    .container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+
+    .card-shadow {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(0,0,0,0.04);
+    }
+
+    .card-shadow:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.06);
+    }
+
+    .gradient-teal { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
+    .gradient-purple { background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); }
+    .gradient-rose { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); }
+    .gradient-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+
+    .chart-container { min-height: 280px; }
+
+    .fade-in-up {
+        animation: fadeInUp 0.5s ease-out forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    @keyframes fadeInUp {
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .timeline-line {
+        position: absolute;
+        left: 11px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, #14b8a6, #a855f7);
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s infinite;
+    }
+
+    @keyframes skeleton-loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* Responsive fixes */
+    @media (max-width: 640px) {
+        .chart-container { min-height: 220px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="studentDashboard()" x-init="init()" class="min-h-screen bg-slate-50">
+
+    <!-- 顶部欢迎栏 -->
+    <div class="gradient-teal text-white relative overflow-hidden">
+        <!-- Decorative circles -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4"></div>
+
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <p class="text-teal-100 text-sm mb-1" x-text="greeting"></p>
+                    <h1 class="text-2xl font-bold" x-text="studentName"></h1>
+                    <p class="text-teal-100 text-sm mt-1" x-text="currentDate"></p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="/accounts/logout/" class="text-sm text-teal-100 hover:text-white transition-colors flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        退出
+                    </a>
+                    <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 -mt-4 relative z-10">
+
+        <!-- 快捷入口 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5 fade-in-up" style="animation-delay: 0.05s">
+            <a href="/exams/list/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-teal flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">我的考试</span>
+            </a>
+            <a href="/exams/list/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-purple flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">错题本</span>
+            </a>
+            <a href="/exams/list/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-amber flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">成绩分析</span>
+            </a>
+            <a href="/accounts/logout/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-rose flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">退出</span>
+            </a>
+        </div>
+
+        <!-- 能力雷达图 -->
+        <div class="bg-white rounded-2xl card-shadow p-5 mb-5 fade-in-up" style="animation-delay: 0.1s">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">能力六维雷达</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">点击顶点查看详细分析</p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <template x-for="(s, idx) in skills.series.slice(0, 3)" :key="idx">
+                        <span class="text-xs px-2 py-1 rounded-full" :class="idx === 0 ? 'bg-teal-50 text-teal-600' : 'bg-slate-100 text-slate-500'" x-text="s.date"></span>
+                    </template>
+                </div>
+            </div>
+            <div id="skillsRadar" class="chart-container"></div>
+        </div>
+
+        <!-- 错题消灭进度 + 预测卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <!-- 错题进度环 -->
+            <div class="bg-white rounded-2xl card-shadow p-5 fade-in-up" style="animation-delay: 0.2s">
+                <h2 class="text-lg font-bold text-slate-800 mb-4">错题消灭进度</h2>
+                <div class="flex items-center gap-6 flex-wrap sm:flex-nowrap">
+                    <div class="relative w-32 h-32 flex-shrink-0 mx-auto sm:mx-0">
+                        <div id="errorProgress" class="w-full h-full"></div>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-2xl font-bold text-slate-800" x-text="errorStats.mastered_rate + '%'"></span>
+                            <span class="text-xs text-slate-400">已掌握</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 space-y-3 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-500">已掌握</span>
+                            <span class="text-sm font-semibold text-teal-600" x-text="errorStats.mastered"></span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-teal-500 rounded-full transition-all duration-1000" :style="`width: ${errorStats.mastered_rate}%`"></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-500">待复习</span>
+                            <span class="text-sm font-semibold text-rose-500" x-text="errorStats.pending"></span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-rose-500 rounded-full transition-all duration-1000" :style="`width: ${100 - errorStats.mastered_rate}%`"></div>
+                        </div>
+                        <a href="/exams/" class="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 transition-colors mt-2">
+                            前往错题本
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 预测分析 -->
+            <div class="bg-white rounded-2xl card-shadow p-5 fade-in-up" style="animation-delay: 0.3s">
+                <h2 class="text-lg font-bold text-slate-800 mb-3">成绩预测</h2>
+                <div id="predictionChart" class="chart-container" style="min-height: 120px"></div>
+                <div class="mt-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                    <div class="flex items-start gap-2">
+                        <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg class="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm text-purple-800 font-medium" x-text="prediction.suggestion"></p>
+                            <p class="text-xs text-purple-500 mt-1" x-show="prediction.prediction">
+                                基于最近 <span x-text="prediction.history.length"></span> 次考试趋势预测
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 班级排名 -->
+        <div class="bg-white rounded-2xl card-shadow p-5 mb-5 fade-in-up" style="animation-delay: 0.4s">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-800">班级排名</h2>
+                <span class="text-sm text-slate-400" x-text="ranking.class_name"></span>
+            </div>
+            <div id="rankingChart" class="chart-container" style="min-height: 200px"></div>
+            <div class="flex justify-center gap-6 mt-3 text-sm flex-wrap">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-teal-500"></span>
+                    <span class="text-slate-500">你的位置</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-slate-300"></span>
+                    <span class="text-slate-500">其他同学</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 学习行为时间轴 -->
+        <div class="bg-white rounded-2xl card-shadow p-5 mb-5 fade-in-up" style="animation-delay: 0.5s">
+            <h2 class="text-lg font-bold text-slate-800 mb-4">学习轨迹</h2>
+            <div class="relative pl-6 space-y-3">
+                <div class="timeline-line"></div>
+                <template x-for="(event, idx) in timeline" :key="idx">
+                    <div class="relative flex items-start gap-3">
+                        <div class="absolute left-[-17px] top-0.5 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white flex-shrink-0"
+                             :class="event.type === 'exam' ? (event.score && event.score >= 80 ? 'bg-teal-500' : 'bg-amber-500') : 'bg-purple-500'">
+                            <svg x-show="event.type === 'exam'" class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                            <svg x-show="event.type === 'login'" class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
+                        </div>
+                        <div class="flex-1 pb-3 min-w-0">
+                            <div class="flex items-center justify-between flex-wrap gap-1">
+                                <p class="text-sm font-medium text-slate-700" x-text="event.title"></p>
+                                <span class="text-xs text-slate-400 whitespace-nowrap" x-text="event.time"></span>
+                            </div>
+                            <div x-show="event.score !== null" class="mt-1 flex items-center gap-2 flex-wrap">
+                                <span class="text-xs px-2 py-0.5 rounded-full" :class="event.score >= 80 ? 'bg-teal-50 text-teal-600' : 'bg-amber-50 text-amber-600'" x-text="'得分: ' + event.score"></span>
+                                <span x-show="event.duration > 0" class="text-xs text-slate-400" x-text="event.duration + '分钟'"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- 快捷入口 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 fade-in-up" style="animation-delay: 0.6s">
+            <a href="/exams/list/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-teal flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">我的考试</span>
+            </a>
+            <a href="/exams/list/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-purple flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">错题本</span>
+            </a>
+            <a href="/exams/list/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-amber flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">成绩分析</span>
+            </a>
+            <a href="/accounts/logout/" class="group bg-white rounded-xl card-shadow p-4 text-center hover:scale-105 transition-transform">
+                <div class="w-10 h-10 mx-auto rounded-lg gradient-rose flex items-center justify-center mb-2 group-hover:shadow-lg transition-shadow">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </div>
+                <span class="text-sm text-slate-600">退出</span>
+            </a>
+        </div>
+    </main>
+</div>
+
+<script>
+function studentDashboard() {
+    return {
+        greeting: '',
+        studentName: '{{ request.user.first_name|default:request.user.username }}',
+        currentDate: '',
+        skills: { dimensions: [], series: [] },
+        errorStats: { mastered: 0, pending: 0, mastered_rate: 0 },
+        prediction: { suggestion: '', prediction: null, history: [] },
+        ranking: { class_name: '', rankings: [], my_rank: null },
+        timeline: [],
+        charts: {},
+
+        init() {
+            this.setGreeting();
+            this.setDate();
+            this.loadSkills();
+            this.loadErrorStats();
+            this.loadPrediction();
+            this.loadRanking();
+            this.loadTimeline();
+
+            window.addEventListener('resize', () => {
+                Object.values(this.charts).forEach(chart => chart && chart.resize());
+            });
+        },
+
+        setGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) this.greeting = '早上好，';
+            else if (hour < 18) this.greeting = '下午好，';
+            else this.greeting = '晚上好，';
+        },
+
+        setDate() {
+            const now = new Date();
+            const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            this.currentDate = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${days[now.getDay()]}`;
+        },
+
+        async loadSkills() {
+            try {
+                const res = await fetch('/exams/api/student-skills/');
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.skills = data.data;
+                    this.renderSkillsChart(data.data);
+                }
+            } catch (e) { console.error('技能雷达加载失败', e); }
+        },
+
+        renderSkillsChart(data) {
+            const chart = echarts.init(document.getElementById('skillsRadar'));
+            this.charts.skills = chart;
+
+            const colors = ['#14b8a6', '#a855f7', '#f59e0b'];
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    backgroundColor: 'rgba(255,255,255,0.95)',
+                    borderColor: '#e2e8f0',
+                    textStyle: { color: '#1e293b' }
+                },
+                legend: {
+                    data: data.series.map(s => s.name),
+                    textStyle: { color: '#64748b', fontSize: 11 },
+                    bottom: 0,
+                    itemWidth: 10,
+                    itemHeight: 10
+                },
+                radar: {
+                    indicator: data.dimensions.map(d => ({ name: d, max: 100 })),
+                    axisName: { color: '#64748b', fontSize: 11 },
+                    splitArea: {
+                        areaStyle: {
+                            color: ['rgba(241,245,249,0.8)', 'rgba(248,250,252,0.5)']
+                        }
+                    },
+                    axisLine: { lineStyle: { color: '#e2e8f0' } },
+                    splitLine: { lineStyle: { color: '#e2e8f0' } }
+                },
+                series: [{
+                    type: 'radar',
+                    data: data.series.map((s, i) => ({
+                        value: s.value,
+                        name: s.name,
+                        lineStyle: { color: colors[i % colors.length], width: 2 },
+                        areaStyle: { color: colors[i % colors.length], opacity: 0.1 },
+                        itemStyle: { color: colors[i % colors.length] },
+                        symbol: 'circle',
+                        symbolSize: 5
+                    }))
+                }]
+            };
+            chart.setOption(option);
+
+            chart.on('click', (params) => {
+                const dimIndex = params.dimensionIndex;
+                const dimName = data.dimensions[dimIndex];
+                alert(`${dimName} 详细分析：\n该维度基于最近考试的多题综合评分，建议针对性练习相关题型。`);
+            });
+        },
+
+        async loadErrorStats() {
+            try {
+                const res = await fetch('/exams/api/error-stats/');
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.errorStats = data.data;
+                    this.renderErrorProgress(data.data);
+                }
+            } catch (e) { console.error('错题统计加载失败', e); }
+        },
+
+        renderErrorProgress(data) {
+            const chart = echarts.init(document.getElementById('errorProgress'));
+            this.charts.errorProgress = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                series: [{
+                    type: 'pie',
+                    radius: ['75%', '95%'],
+                    avoidLabelOverlap: false,
+                    label: { show: false },
+                    emphasis: { label: { show: false } },
+                    labelLine: { show: false },
+                    data: [
+                        {
+                            value: data.mastered,
+                            name: '已掌握',
+                            itemStyle: { color: '#14b8a6' }
+                        },
+                        {
+                            value: data.pending,
+                            name: '待复习',
+                            itemStyle: { color: '#f1f5f9' }
+                        }
+                    ]
+                }]
+            };
+            chart.setOption(option);
+        },
+
+        async loadPrediction() {
+            try {
+                const res = await fetch('/exams/api/prediction/');
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.prediction = data.data;
+                    this.renderPredictionChart(data.data);
+                }
+            } catch (e) { console.error('预测加载失败', e); }
+        },
+
+        renderPredictionChart(data) {
+            const chart = echarts.init(document.getElementById('predictionChart'));
+            this.charts.prediction = chart;
+
+            const historyData = data.history.map(h => h.score);
+            const xLabels = data.history.map((h, i) => `第${i + 1}次`);
+
+            if (data.prediction) {
+                historyData.push(data.prediction);
+                xLabels.push('预测');
+            }
+
+            const option = {
+                backgroundColor: 'transparent',
+                grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: xLabels,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: { color: '#94a3b8', fontSize: 10 }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } },
+                    axisLabel: { color: '#94a3b8', fontSize: 10 }
+                },
+                series: [{
+                    type: 'line',
+                    data: historyData,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    lineStyle: { color: '#a855f7', width: 3 },
+                    itemStyle: {
+                        color: (params) => params.dataIndex === historyData.length - 1 && data.prediction ? '#f59e0b' : '#a855f7',
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(168, 85, 247, 0.2)' },
+                            { offset: 1, color: 'rgba(168, 85, 247, 0)' }
+                        ])
+                    },
+                    markPoint: data.prediction ? {
+                        data: [{
+                            coord: [historyData.length - 1, data.prediction],
+                            value: '预测',
+                            itemStyle: { color: '#f59e0b' }
+                        }]
+                    } : null
+                }]
+            };
+            chart.setOption(option);
+        },
+
+        async loadRanking() {
+            try {
+                const res = await fetch('/exams/api/class-ranking/');
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.ranking = data.data;
+                    this.renderRankingChart(data.data);
+                }
+            } catch (e) { console.error('排名加载失败', e); }
+        },
+
+        renderRankingChart(data) {
+            const chart = echarts.init(document.getElementById('rankingChart'));
+            this.charts.ranking = chart;
+
+            const myRank = data.my_rank || 1;
+            const rankings = data.rankings.slice(0, 10);
+
+            const option = {
+                backgroundColor: 'transparent',
+                grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: rankings.map(r => r.name),
+                    axisLine: { lineStyle: { color: '#e2e8f0' } },
+                    axisLabel: { color: '#94a3b8', fontSize: 10 },
+                    axisTick: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } },
+                    axisLabel: { color: '#94a3b8', fontSize: 10 }
+                },
+                series: [{
+                    type: 'bar',
+                    data: rankings.map((r, i) => ({
+                        value: r.score,
+                        itemStyle: {
+                            color: i + 1 === myRank ? '#14b8a6' : '#e2e8f0',
+                            borderRadius: [6, 6, 0, 0]
+                        }
+                    })),
+                    barWidth: '50%',
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: (p) => {
+                            const rank = rankings[p.dataIndex].rank;
+                            return `第${rank}名`;
+                        },
+                        color: '#64748b',
+                        fontSize: 10
+                    }
+                }]
+            };
+            chart.setOption(option);
+        },
+
+        async loadTimeline() {
+            try {
+                const res = await fetch('/exams/api/student-timeline/');
+                const data = await res.json();
+                if (data.code === 200) {
+                    this.timeline = data.data.events;
+                }
+            } catch (e) { console.error('时间轴加载失败', e); }
+        }
+    }
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}
