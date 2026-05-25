@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import teacher_views
+from . import api_views, teacher_views
 
 app_name = "teacher"
 
@@ -30,4 +30,10 @@ urlpatterns = [
     path("scores/<int:exam_id>/export/", teacher_views.score_export, name="score_export"),
     path("students/", teacher_views.student_list, name="student_list"),
     path("students/upload/", teacher_views.student_upload, name="student_upload"),
+    # 数据可视化 API
+    path("api/kpi/", api_views.teacher_kpi_api, name="api_kpi"),
+    path("api/class-distribution/", api_views.class_distribution_api, name="api_class_distribution"),
+    path("api/knowledge-mastery/", api_views.knowledge_mastery_api, name="api_knowledge_mastery"),
+    path("api/trend-analysis/", api_views.trend_analysis_api, name="api_trend_analysis"),
+    path("api/error-analysis/", api_views.error_analysis_api, name="api_error_analysis"),
 ]
