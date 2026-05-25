@@ -1,31 +1,106 @@
 {% extends "base.html" %}
 {% block title %}考试管理 - 在线考试系统{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+    body {
+        font-family: 'Noto Sans SC', sans-serif !important;
+        background: #f8fafc !important;
+        color: #1e293b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 100vh !important;
+    }
+    .container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    .card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(0,0,0,0.04); }
+    .card-shadow:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.06); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:900px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>考试管理</h2>
-        <a href="/teacher/exams/create/" class="btn btn-primary" style="padding:8px 20px;border-radius:6px;text-decoration:none">创建考试</a>
-    </div>
-    {% for exam in exams %}
-    <div class="card" style="margin-top:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
-        <div>
-            <strong>{{ exam.title }}</strong>
-            {% if not exam.is_active %}<span style="color:#e74c3c;font-size:12px;margin-left:8px">已停用</span>{% endif %}
-            <div style="font-size:13px;color:#888;margin-top:4px">
-                考试码: {{ exam.exam_code }} | 时长: {{ exam.duration }}分钟 | 满分: {{ exam.total_score }}分
+<div class="min-h-screen bg-slate-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    </div>
+                    <h1 class="text-lg font-bold text-slate-800">考试管理</h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="/teacher/" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">返回仪表盘</a>
+                    <a href="/teacher/exams/create/" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        创建考试
+                    </a>
+                </div>
             </div>
         </div>
-        <div style="display:flex;gap:12px">
-            <a href="/teacher/exams/{{ exam.id }}/qrcode/" style="color:#34a853;text-decoration:none">二维码</a>
-            <a href="/teacher/exams/{{ exam.id }}/edit/" style="color:#4a90d9;text-decoration:none">编辑</a>
-            <form method="post" action="/teacher/exams/{{ exam.id }}/delete/" style="display:inline" onsubmit="return confirm('确认停用？')">
-                {% csrf_token %}
-                <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer">停用</button>
-            </form>
-        </div>
     </div>
-    {% empty %}
-    <p style="color:#888;text-align:center;padding:40px">暂无考试</p>
-    {% endfor %}
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% for exam in exams %}
+        <div class="bg-white rounded-xl card-shadow p-5 mb-4 hover:scale-[1.01] transition-transform">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="text-base font-semibold text-slate-800">{{ exam.title }}</h3>
+                        {% if not exam.is_active %}
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-100">已停用</span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">进行中</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-3 mt-2 text-sm text-slate-400 flex-wrap">
+                        <span class="inline-flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
+                            {{ exam.exam_code }}
+                        </span>
+                        <span class="inline-flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {{ exam.duration }}分钟
+                        </span>
+                        <span class="inline-flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            满分 {{ exam.total_score }}分
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <a href="/teacher/exams/{{ exam.id }}/qrcode/" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h2v-4H6v4zm6-6h2v-4h-2v4zm-6 0h2v-4H6v4zm12-6h2V4h-2v4zM6 10h2V4H6v6zm6-6h2V4h-2v4z"/></svg>
+                        二维码
+                    </a>
+                    <a href="/teacher/exams/{{ exam.id }}/edit/" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        编辑
+                    </a>
+                    <form method="post" action="/teacher/exams/{{ exam.id }}/delete/" class="inline" onsubmit="return confirm('确认停用？')">
+                        {% csrf_token %}
+                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                            停用
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-16">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            </div>
+            <p class="text-slate-400">暂无考试</p>
+            <a href="/teacher/exams/create/" class="inline-flex items-center gap-1 mt-3 text-sm text-blue-600 hover:text-blue-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                创建第一场考试
+            </a>
+        </div>
+        {% endfor %}
+    </main>
 </div>
 {% endblock %}

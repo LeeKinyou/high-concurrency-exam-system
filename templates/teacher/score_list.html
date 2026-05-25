@@ -1,88 +1,134 @@
 {% extends "base.html" %}
 {% block title %}成绩管理 - 在线考试系统{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+    body {
+        font-family: 'Noto Sans SC', sans-serif !important;
+        background: #f8fafc !important;
+        color: #1e293b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 100vh !important;
+    }
+    .container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    .card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(0,0,0,0.04); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:1000px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>成绩管理</h2>
-    </div>
-
-    <div class="card" style="padding:20px;margin-bottom:20px">
-        <form method="get" style="display:flex;gap:12px;align-items:center">
-            <label>选择考试：</label>
-            <select name="exam_id" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-                <option value="">-- 请选择考试 --</option>
-                {% for exam in exams %}
-                <option value="{{ exam.id }}" {% if selected_exam_id == exam.id %}selected{% endif %}>{{ exam.title }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary">查看成绩</button>
-        </form>
-    </div>
-
-    {% if exam %}
-    <div class="card" style="padding:20px;margin-bottom:20px">
-        <h3>{{ exam.title }} - 成绩统计</h3>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px">
-            <div style="text-align:center;padding:16px;background:#f0f4f8;border-radius:8px">
-                <div style="font-size:24px;font-weight:bold;color:#1a73e8">{{ stats.submitted_students }}</div>
-                <div style="color:#888;font-size:14px">已提交</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:#f0f4f8;border-radius:8px">
-                <div style="font-size:24px;font-weight:bold;color:#34a853">{{ stats.avg_score }}</div>
-                <div style="color:#888;font-size:14px">平均分</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:#f0f4f8;border-radius:8px">
-                <div style="font-size:24px;font-weight:bold;color:#fbbc04">{{ stats.max_score }}</div>
-                <div style="color:#888;font-size:14px">最高分</div>
+<div class="min-h-screen bg-slate-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <h1 class="text-lg font-bold text-slate-800">成绩管理</h1>
+                </div>
+                <a href="/teacher/" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">返回仪表盘</a>
             </div>
         </div>
-        <div style="margin-top:16px;text-align:right">
-            <a href="/teacher/scores/{{ exam.id }}/export/" class="btn btn-secondary">导出 Excel</a>
-        </div>
     </div>
 
-    <div class="card" style="padding:20px">
-        <table style="width:100%;border-collapse:collapse">
-            <thead>
-                <tr style="border-bottom:2px solid #eee">
-                    <th style="text-align:left;padding:12px 8px">学号</th>
-                    <th style="text-align:left;padding:12px 8px">姓名</th>
-                    <th style="text-align:center;padding:12px 8px">状态</th>
-                    <th style="text-align:right;padding:12px 8px">得分</th>
-                    <th style="text-align:right;padding:12px 8px">提交时间</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in records %}
-                <tr style="border-bottom:1px solid #f0f0f0">
-                    <td style="padding:12px 8px">{{ record.student.student_id|default:"-" }}</td>
-                    <td style="padding:12px 8px">{{ record.student.first_name|default:record.student.username }}</td>
-                    <td style="text-align:center;padding:12px 8px">
-                        {% if record.status == "draft" %}
-                        <span style="color:#888">未提交</span>
-                        {% elif record.status == "auto_graded" %}
-                        <span style="color:#34a853">已批改</span>
-                        {% elif record.status == "submitted" %}
-                        <span style="color:#fbbc04">待批改</span>
-                        {% else %}
-                        <span style="color:#1a73e8">{{ record.status }}</span>
-                        {% endif %}
-                    </td>
-                    <td style="text-align:right;padding:12px 8px;font-weight:bold">
-                        {% if record.is_graded %}{{ record.score }}{% else %}-{% endif %}
-                    </td>
-                    <td style="text-align:right;padding:12px 8px;color:#888;font-size:13px">
-                        {% if record.submit_time %}{{ record.submit_time|date:"Y-m-d H:i" }}{% else %}-{% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align:center;padding:40px;color:#888">暂无成绩数据</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Exam Selector -->
+        <div class="bg-white rounded-xl card-shadow p-5 mb-6">
+            <form method="get" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <label class="text-sm font-medium text-slate-700 flex-shrink-0">选择考试：</label>
+                <select name="exam_id" class="flex-1 min-w-0 px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+                    <option value="">-- 请选择考试 --</option>
+                    {% for exam in exams %}
+                    <option value="{{ exam.id }}" {% if selected_exam_id == exam.id %}selected{% endif %}>{{ exam.title }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="px-6 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.02] transition-all flex-shrink-0">
+                    查看成绩
+                </button>
+            </form>
+        </div>
+
+        {% if exam %}
+        <!-- Stats Cards -->
+        <div class="bg-white rounded-xl card-shadow p-5 mb-6">
+            <h2 class="text-base font-semibold text-slate-800 mb-4">{{ exam.title }} - 成绩统计</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="text-center p-5 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+                    <div class="text-3xl font-bold text-blue-600">{{ stats.submitted_students }}</div>
+                    <div class="text-sm text-slate-500 mt-1">已提交</div>
+                </div>
+                <div class="text-center p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+                    <div class="text-3xl font-bold text-emerald-600">{{ stats.avg_score }}</div>
+                    <div class="text-sm text-slate-500 mt-1">平均分</div>
+                </div>
+                <div class="text-center p-5 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                    <div class="text-3xl font-bold text-amber-600">{{ stats.max_score }}</div>
+                    <div class="text-sm text-slate-500 mt-1">最高分</div>
+                </div>
+            </div>
+            <div class="mt-4 text-right">
+                <a href="/teacher/scores/{{ exam.id }}/export/" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    导出 Excel
+                </a>
+            </div>
+        </div>
+
+        <!-- Score Table -->
+        <div class="bg-white rounded-xl card-shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-slate-100 bg-slate-50/50">
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">学号</th>
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">姓名</th>
+                            <th class="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">得分</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">提交时间</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for record in records %}
+                        <tr class="hover:bg-slate-50/50 transition-colors">
+                            <td class="py-3 px-4 text-sm text-slate-600">{{ record.student.student_id|default:"-" }}</td>
+                            <td class="py-3 px-4 text-sm font-medium text-slate-800">{{ record.student.first_name|default:record.student.username }}</td>
+                            <td class="py-3 px-4 text-center">
+                                {% if record.status == "draft" %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">未提交</span>
+                                {% elif record.status == "auto_graded" %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">已批改</span>
+                                {% elif record.status == "submitted" %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">待批改</span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{{ record.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 px-4 text-right text-sm font-bold text-slate-800">
+                                {% if record.is_graded %}{{ record.score }}{% else %}<span class="text-slate-300">-</span>{% endif %}
+                            </td>
+                            <td class="py-3 px-4 text-right text-sm text-slate-400">
+                                {% if record.submit_time %}{{ record.submit_time|date:"Y-m-d H:i" }}{% else %}<span class="text-slate-300">-</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-12">
+                                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                </div>
+                                <p class="text-slate-400 text-sm">暂无成绩数据</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </main>
 </div>
 {% endblock %}

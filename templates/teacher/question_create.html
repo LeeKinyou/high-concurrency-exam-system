@@ -1,94 +1,261 @@
 {% extends "base.html" %}
 {% block title %}创建题目 - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:800px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>创建题目</h2>
-        <a href="/teacher/questions/" class="btn btn-secondary">返回题目列表</a>
-    </div>
+<style>
+body {
+    font-family: 'Noto Sans SC', sans-serif !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+.container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out both;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.form-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+}
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+.form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+    color: #1e293b;
+}
+.form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.form-input::placeholder {
+    color: #94a3b8;
+}
+.form-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    background: white;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.form-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.form-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+    color: #1e293b;
+    resize: vertical;
+    min-height: 80px;
+}
+.form-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.option-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+.option-row:focus-within {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+.option-label {
+    font-weight: 700;
+    color: #3b82f6;
+    min-width: 24px;
+    text-align: center;
+}
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+.btn-back:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+.btn-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.25);
+}
+.btn-submit:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 6px 20px rgba(37,99,235,0.35);
+    transform: translateY(-1px);
+}
+.alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+</style>
 
-    {% if error %}
-    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c;margin-bottom:16px">{{ error }}</div>
-    {% endif %}
-
-    <div class="card" style="padding:24px">
-        <form method="post" id="question-form">
-            {% csrf_token %}
-
-            <div style="margin-bottom:16px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">关联考试</label>
-                <select name="exam_id" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
-                    <option value="">不关联（通用题目）</option>
-                    {% for exam in exams %}
-                    <option value="{{ exam.id }}">{{ exam.title }}</option>
-                    {% endfor %}
-                </select>
+<div class="min-h-screen bg-slate-50">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+        <div class="flex items-center justify-between mb-8 fade-in-up">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">创建题目</h1>
+                <p class="text-slate-500 mt-1 text-sm">添加新的考试题目到题库</p>
             </div>
+            <a href="/teacher/questions/" class="btn-back">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                返回题目列表
+            </a>
+        </div>
 
-            <div style="margin-bottom:16px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">题型 *</label>
-                <select name="question_type" id="q-type" onchange="toggleOptions()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
-                    <option value="choice">选择题</option>
-                    <option value="blank">填空题</option>
-                </select>
+        {% if error %}
+        <div class="alert-error mb-6 fade-in-up">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {{ error }}
             </div>
+        </div>
+        {% endif %}
 
-            <div style="margin-bottom:16px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">题干 *</label>
-                <textarea name="content" rows="3" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="请输入题目内容，填空题用 ___ 表示空格"></textarea>
-            </div>
+        <div class="form-card p-6 sm:p-8 fade-in-up" style="animation-delay: 0.1s">
+            <form method="post" id="question-form">
+                {% csrf_token %}
 
-            <div id="options-area" style="margin-bottom:16px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">选项</label>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-weight:bold;min-width:20px">A</span>
-                        <input type="text" name="option_A" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-weight:bold;min-width:20px">B</span>
-                        <input type="text" name="option_B" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-weight:bold;min-width:20px">C</span>
-                        <input type="text" name="option_C" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-weight:bold;min-width:20px">D</span>
-                        <input type="text" name="option_D" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-bottom:16px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">正确答案 *</label>
-                <input type="text" name="answer" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="选择题填选项字母（如 B），填空题填正确答案（多答案用 | 分隔）">
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-                <div>
-                    <label style="display:block;margin-bottom:4px;font-weight:bold">分值</label>
-                    <input type="number" name="score" value="10" min="1" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
-                </div>
-                <div>
-                    <label style="display:block;margin-bottom:4px;font-weight:bold">难度</label>
-                    <select name="difficulty" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
-                        <option value="easy">简单</option>
-                        <option value="medium" selected>中等</option>
-                        <option value="hard">困难</option>
+                <div class="mb-5">
+                    <label class="form-label">关联考试</label>
+                    <select name="exam_id" class="form-select">
+                        <option value="">不关联（通用题目）</option>
+                        {% for exam in exams %}
+                        <option value="{{ exam.id }}">{{ exam.title }}</option>
+                        {% endfor %}
                     </select>
                 </div>
-            </div>
 
-            <div style="margin-bottom:16px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">解析</label>
-                <textarea name="explanation" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="可选，用于学生查看答案解析"></textarea>
-            </div>
+                <div class="mb-5">
+                    <label class="form-label">题型 <span class="text-red-500">*</span></label>
+                    <select name="question_type" id="q-type" onchange="toggleOptions()" class="form-select">
+                        <option value="choice">选择题</option>
+                        <option value="blank">填空题</option>
+                    </select>
+                </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;border:none;border-radius:6px;cursor:pointer;font-size:16px">创建题目</button>
-        </form>
+                <div class="mb-5">
+                    <label class="form-label">题干 <span class="text-red-500">*</span></label>
+                    <textarea name="content" rows="3" required class="form-textarea" placeholder="请输入题目内容，填空题用 ___ 表示空格"></textarea>
+                </div>
+
+                <div id="options-area" class="mb-5">
+                    <label class="form-label">选项</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="option-row">
+                            <span class="option-label">A</span>
+                            <input type="text" name="option_A" class="form-input border-0 bg-transparent p-0 focus:ring-0 focus:shadow-none" placeholder="选项A">
+                        </div>
+                        <div class="option-row">
+                            <span class="option-label">B</span>
+                            <input type="text" name="option_B" class="form-input border-0 bg-transparent p-0 focus:ring-0 focus:shadow-none" placeholder="选项B">
+                        </div>
+                        <div class="option-row">
+                            <span class="option-label">C</span>
+                            <input type="text" name="option_C" class="form-input border-0 bg-transparent p-0 focus:ring-0 focus:shadow-none" placeholder="选项C">
+                        </div>
+                        <div class="option-row">
+                            <span class="option-label">D</span>
+                            <input type="text" name="option_D" class="form-input border-0 bg-transparent p-0 focus:ring-0 focus:shadow-none" placeholder="选项D">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <label class="form-label">正确答案 <span class="text-red-500">*</span></label>
+                    <input type="text" name="answer" required class="form-input" placeholder="选择题填选项字母（如 B），填空题填正确答案（多答案用 | 分隔）">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="form-label">分值</label>
+                        <input type="number" name="score" value="10" min="1" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">难度</label>
+                        <select name="difficulty" class="form-select">
+                            <option value="easy">简单</option>
+                            <option value="medium" selected>中等</option>
+                            <option value="hard">困难</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="form-label">解析</label>
+                    <textarea name="explanation" rows="2" class="form-textarea" placeholder="可选，用于学生查看答案解析"></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    创建题目
+                </button>
+            </form>
+        </div>
     </div>
 </div>
+
 <script>
 function toggleOptions() {
     const type = document.getElementById('q-type').value;

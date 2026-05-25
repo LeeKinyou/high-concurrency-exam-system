@@ -1,82 +1,239 @@
 {% extends "base.html" %}
 {% block title %}{% if exam %}编辑考试{% else %}创建考试{% endif %} - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:700px">
-    <h2 style="margin:20px 0">{% if exam %}编辑考试{% else %}创建考试{% endif %}</h2>
-    {% if error %}
-    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:16px;color:#e74c3c">{{ error }}</div>
-    {% endif %}
-    <div class="card" style="padding:24px">
-        <form method="post">
-            {% csrf_token %}
-            <div class="form-group">
-                <label>考试名称</label>
-                <input type="text" name="title" value="{{ exam.title|default:'' }}" required placeholder="请输入考试名称">
-            </div>
-            <div class="form-group">
-                <label>考试描述</label>
-                <textarea name="description" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;min-height:80px;font-size:15px">{{ exam.description|default:'' }}</textarea>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                <div class="form-group">
-                    <label>时长(分钟)</label>
-                    <input type="number" name="duration" value="{{ exam.duration|default:60 }}" min="1">
-                </div>
-                <div class="form-group">
-                    <label>满分</label>
-                    <input type="number" name="total_score" value="{{ exam.total_score|default:100 }}" min="1">
-                </div>
-                <div class="form-group">
-                    <label>开始时间</label>
-                    <input type="datetime-local" name="start_time" value="{{ exam.start_time|date:'Y-m-d\TH:i'|default:'' }}">
-                </div>
-                <div class="form-group">
-                    <label>结束时间</label>
-                    <input type="datetime-local" name="end_time" value="{{ exam.end_time|date:'Y-m-d\TH:i'|default:'' }}">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>可见性</label>
-                <select name="visibility" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px">
-                    <option value="public" {% if exam.visibility == "public" or not exam %}selected{% endif %}>公开</option>
-                    <option value="class_specific" {% if exam.visibility == "class_specific" %}selected{% endif %}>指定班级</option>
-                </select>
-            </div>
-            {% if classes %}
-            <div class="form-group">
-                <label>指定班级</label>
-                {% for cls in classes %}
-                <label style="display:block;padding:6px 0;font-size:14px">
-                    <input type="checkbox" name="allowed_classes" value="{{ cls.id }}" {% if cls in exam.allowed_classes.all %}checked{% endif %}>
-                    {{ cls.name }}
-                </label>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% if exam %}
-            <div class="form-group">
-                <label style="display:flex;align-items:center;gap:8px">
-                    <input type="checkbox" name="is_active" {% if exam.is_active %}checked{% endif %}>
-                    启用考试
-                </label>
-            </div>
-            {% endif %}
-            <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;border:none;border-radius:8px;font-size:16px;cursor:pointer">
-                {% if exam %}保存修改{% else %}创建考试{% endif %}
-            </button>
-        </form>
-    </div>
-    {% if exam and exam_questions %}
-    <div class="card" style="margin-top:16px;padding:24px">
-        <h3 style="margin-bottom:16px">题目列表 ({{ exam_questions|length }}题)</h3>
-        {% for eq in exam_questions %}
-        <div style="padding:10px 0;border-bottom:1px solid #eee">
-            <span style="color:#888;font-size:13px">第{{ eq.order }}题</span>
-            <span style="margin-left:8px">{{ eq.question.content|truncatewords:20 }}</span>
-            <span style="float:right;color:#888">{{ eq.question.score }}分</span>
+<style>
+body {
+    font-family: 'Noto Sans SC', sans-serif !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+.container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out both;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.form-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+}
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+.form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+    color: #1e293b;
+}
+.form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.form-input::placeholder {
+    color: #94a3b8;
+}
+.form-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    background: white;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.form-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.form-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+    color: #1e293b;
+    resize: vertical;
+    min-height: 80px;
+}
+.form-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: #475569;
+    cursor: pointer;
+}
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+}
+.btn-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.25);
+}
+.btn-submit:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 6px 20px rgba(37,99,235,0.35);
+    transform: translateY(-1px);
+}
+.alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+.question-list-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+.question-list-item:last-child {
+    border-bottom: none;
+}
+</style>
+
+<div class="min-h-screen bg-slate-50">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+        <div class="mb-8 fade-in-up">
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">{% if exam %}编辑考试{% else %}创建考试{% endif %}</h1>
+            <p class="text-slate-500 mt-1 text-sm">{% if exam %}修改考试信息和设置{% else %}创建新的考试{% endif %}</p>
         </div>
-        {% endfor %}
+
+        {% if error %}
+        <div class="alert-error mb-6 fade-in-up">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {{ error }}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="form-card p-6 sm:p-8 mb-6 fade-in-up" style="animation-delay: 0.1s">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-5">
+                    <label class="form-label">考试名称</label>
+                    <input type="text" name="title" value="{{ exam.title|default:'' }}" required placeholder="请输入考试名称" class="form-input">
+                </div>
+                <div class="mb-5">
+                    <label class="form-label">考试描述</label>
+                    <textarea name="description" class="form-textarea" placeholder="请输入考试描述">{{ exam.description|default:'' }}</textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="form-label">时长(分钟)</label>
+                        <input type="number" name="duration" value="{{ exam.duration|default:60 }}" min="1" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">满分</label>
+                        <input type="number" name="total_score" value="{{ exam.total_score|default:100 }}" min="1" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">开始时间</label>
+                        <input type="datetime-local" name="start_time" value="{{ exam.start_time|date:'Y-m-d\TH:i'|default:'' }}" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">结束时间</label>
+                        <input type="datetime-local" name="end_time" value="{{ exam.end_time|date:'Y-m-d\TH:i'|default:'' }}" class="form-input">
+                    </div>
+                </div>
+                <div class="mb-5">
+                    <label class="form-label">可见性</label>
+                    <select name="visibility" class="form-select">
+                        <option value="public" {% if exam.visibility == "public" or not exam %}selected{% endif %}>公开</option>
+                        <option value="class_specific" {% if exam.visibility == "class_specific" %}selected{% endif %}>指定班级</option>
+                    </select>
+                </div>
+                {% if classes %}
+                <div class="mb-5">
+                    <label class="form-label">指定班级</label>
+                    <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        {% for cls in classes %}
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="allowed_classes" value="{{ cls.id }}" {% if cls in exam.allowed_classes.all %}checked{% endif %}>
+                            {{ cls.name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if exam %}
+                <div class="mb-6">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_active" {% if exam.is_active %}checked{% endif %}>
+                        <span class="font-medium">启用考试</span>
+                    </label>
+                </div>
+                {% endif %}
+                <button type="submit" class="btn-submit">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    {% if exam %}保存修改{% else %}创建考试{% endif %}
+                </button>
+            </form>
+        </div>
+
+        {% if exam and exam_questions %}
+        <div class="form-card p-6 sm:p-8 fade-in-up" style="animation-delay: 0.2s">
+            <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                题目列表 ({{ exam_questions|length }}题)
+            </h3>
+            {% for eq in exam_questions %}
+            <div class="question-list-item">
+                <span class="text-xs text-slate-400 font-mono">第{{ eq.order }}题</span>
+                <span class="flex-1 text-slate-700 truncate">{{ eq.question.content|truncatewords:20 }}</span>
+                <span class="text-slate-400 text-sm">{{ eq.question.score }}分</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}

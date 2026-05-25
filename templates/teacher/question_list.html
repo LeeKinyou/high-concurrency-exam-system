@@ -1,68 +1,290 @@
 {% extends "base.html" %}
 {% block title %}题目管理 - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:960px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>题目管理</h2>
-        <div style="display:flex;gap:8px">
-            <a href="/teacher/questions/create/" class="btn btn-primary" style="padding:8px 16px;border:none;border-radius:6px;text-decoration:none">手动创建</a>
-            <button onclick="showImportForm()" class="btn" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;cursor:pointer">Excel导入</button>
-            <a href="/teacher/api/questions/sample/" class="btn" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;text-decoration:none">下载模板</a>
-        </div>
-    </div>
+<style>
+body {
+    font-family: 'Noto Sans SC', sans-serif !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+.container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out both;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.question-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+}
+.question-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+.tag-blue { background: #dbeafe; color: #1e40af; }
+.tag-gray { background: #f1f5f9; color: #64748b; }
+.tag-purple { background: #f3e8ff; color: #7c3aed; }
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    flex-shrink: 0;
+}
+.btn-primary-action {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.2);
+}
+.btn-primary-action:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.btn-secondary-action {
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+.btn-secondary-action:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+.btn-danger-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: white;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.btn-danger-action:hover {
+    background: #fef2f2;
+}
+.import-panel {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+.select-modern {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    color: #475569;
+    transition: all 0.2s ease;
+}
+.select-modern:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.25s ease;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.search-box:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59,130,246,0.08), 0 2px 8px rgba(59,130,246,0.06);
+}
+.search-box input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #1e293b;
+    outline: none;
+}
+.search-box input::placeholder {
+    color: #94a3b8;
+}
+.search-box .search-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.2);
+}
+.search-box .search-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+    transform: translateY(-1px);
+}
+.search-box .clear-btn {
+    font-size: 13px;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+}
+.search-box .clear-btn:hover {
+    color: #64748b;
+}
+.empty-state {
+    text-align: center;
+    padding: 48px 20px;
+}
+.empty-state-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.empty-state-icon svg {
+    width: 24px;
+    height: 24px;
+    color: #94a3b8;
+}
+</style>
 
-    <!-- Excel 导入表单 -->
-    <div id="import-form" class="card" style="padding:20px;margin-bottom:20px;display:none">
-        <h3>Excel 导入题目</h3>
-        <p style="color:#888;font-size:14px;margin:8px 0">请先下载模板，按照模板格式填写后上传</p>
-        <form id="import-submit-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:12px">
-            {% csrf_token %}
-            <select name="exam_id" style="padding:8px;border:1px solid #ddd;border-radius:6px">
-                <option value="">不关联考试</option>
+<div class="min-h-screen bg-slate-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 fade-in-up">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">题目管理</h1>
+                <p class="text-slate-500 mt-0.5 text-xs">共 {{ questions|length }} 道题目</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/teacher/questions/create/" class="btn-action btn-primary-action">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    手动创建
+                </a>
+                <button onclick="showImportForm()" class="btn-action btn-secondary-action">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    Excel导入
+                </button>
+                <a href="/teacher/api/questions/sample/" class="btn-action btn-secondary-action">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    下载模板
+                </a>
+            </div>
+        </div>
+
+        <form method="get" class="search-box fade-in-up" style="animation-delay: 0.05s">
+            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" name="q" value="{{ keyword }}" placeholder="搜索题目内容、题型、难度...">
+            <button type="submit" class="search-btn">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                搜索
+            </button>
+            {% if keyword %}
+            <a href="/teacher/questions/" class="clear-btn">清除</a>
+            {% endif %}
+        </form>
+
+        <div id="import-form" class="import-panel p-4 sm:p-5 mb-5 fade-in-up" style="display:none">
+            <h3 class="text-sm font-semibold text-slate-800 mb-1">Excel 导入题目</h3>
+            <p class="text-slate-500 text-xs mb-3">请先下载模板，按照模板格式填写后上传</p>
+            <form id="import-submit-form" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                {% csrf_token %}
+                <select name="exam_id" class="select-modern">
+                    <option value="">不关联考试</option>
+                    {% for exam in exams %}
+                    <option value="{{ exam.id }}">{{ exam.title }}</option>
+                    {% endfor %}
+                </select>
+                <input type="file" name="file" accept=".xlsx,.xls" required class="text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <div class="flex gap-2 ml-auto">
+                    <button type="submit" class="btn-action btn-primary-action">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        开始导入
+                    </button>
+                    <button type="button" onclick="hideImportForm()" class="btn-action btn-secondary-action">取消</button>
+                </div>
+            </form>
+            <div id="import-result" style="display:none;margin-top:10px"></div>
+        </div>
+
+        {% for q in questions %}
+        <div class="question-row fade-in-up" id="q-{{ q.id }}" style="animation-delay: {{ forloop.counter|add:0 }}00ms">
+            <span class="tag tag-blue">#{{ forloop.counter }}</span>
+            <span class="tag tag-gray">{{ q.get_question_type_display }}</span>
+            <span class="tag tag-gray">{{ q.get_difficulty_display }}</span>
+            <span class="tag tag-purple">{{ q.score }}分</span>
+            <p class="flex-1 text-sm text-slate-700 truncate min-w-0">{{ q.content|truncatewords:15 }}</p>
+            <select onchange="linkExam({{ q.id }}, this)" class="select-modern max-w-[120px]">
+                <option value="">未关联</option>
                 {% for exam in exams %}
-                <option value="{{ exam.id }}">{{ exam.title }}</option>
+                <option value="{{ exam.id }}" {% if q.exam and q.exam.id == exam.id %}selected{% endif %}>{{ exam.title }}</option>
                 {% endfor %}
             </select>
-            <input type="file" name="file" accept=".xlsx,.xls" required style="font-size:14px">
-            <button type="submit" class="btn btn-primary" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer">开始导入</button>
-            <button type="button" onclick="hideImportForm()" class="btn" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;cursor:pointer">取消</button>
-        </form>
-        <div id="import-result" style="display:none;margin-top:12px"></div>
-    </div>
-
-    {% for q in questions %}
-    <div class="card" id="q-{{ q.id }}" style="margin-top:8px;padding:14px 20px">
-        <div style="display:flex;justify-content:space-between;align-items:start;gap:12px">
-            <div style="flex:1;min-width:0">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                    <span style="font-size:12px;font-weight:bold;color:#4a90d9;background:#eef2ff;padding:2px 8px;border-radius:4px">#{{ forloop.counter }}</span>
-                    <span style="font-size:12px;color:#888;background:#f0f0f0;padding:2px 8px;border-radius:4px">{{ q.get_question_type_display }}</span>
-                    <span style="font-size:12px;color:#888">{{ q.get_difficulty_display }}</span>
-                    <span style="font-weight:bold;color:#4a90d9;font-size:13px">{{ q.score }}分</span>
-                </div>
-                <div style="font-size:14px;line-height:1.6">{{ q.content|truncatewords:40 }}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-                <div style="display:flex;align-items:center;gap:6px">
-                    <span style="font-size:12px;color:#888">关联考试:</span>
-                    <select onchange="linkExam({{ q.id }}, this)" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;max-width:160px">
-                        <option value="">未关联</option>
-                        {% for exam in exams %}
-                        <option value="{{ exam.id }}" {% if q.exam and q.exam.id == exam.id %}selected{% endif %}>{{ exam.title }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div style="display:flex;gap:6px">
-                    <span id="link-msg-{{ q.id }}" style="font-size:11px;display:none"></span>
-                    <button onclick="deleteQuestion({{ q.id }})" style="background:none;border:1px solid #fecaca;color:#e74c3c;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">删除</button>
-                </div>
-            </div>
+            <span id="link-msg-{{ q.id }}" class="text-xs hidden flex-shrink-0"></span>
+            <button onclick="deleteQuestion({{ q.id }})" class="btn-danger-action">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                删除
+            </button>
         </div>
+        {% empty %}
+        <div class="empty-state fade-in-up">
+            <div class="empty-state-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-700 mb-1">暂无题目</h3>
+            <p class="text-slate-400 text-xs mb-3">点击"手动创建"或"Excel导入"添加题目</p>
+            <a href="/teacher/questions/create/" class="btn-action btn-primary-action">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                创建题目
+            </a>
+        </div>
+        {% endfor %}
     </div>
-    {% empty %}
-    <p style="color:#888;text-align:center;padding:40px">暂无题目，点击"手动创建"或"Excel导入"添加</p>
-    {% endfor %}
 </div>
+
 <script>
 function showImportForm() {
     document.getElementById('import-form').style.display = 'block';
@@ -77,7 +299,7 @@ document.getElementById('import-submit-form').addEventListener('submit', functio
     var resultDiv = document.getElementById('import-result');
     var submitBtn = this.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.textContent = '导入中...';
+    submitBtn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 导入中...';
 
     fetch('/teacher/api/questions/import/', {
         method: 'POST',
@@ -92,28 +314,26 @@ document.getElementById('import-submit-form').addEventListener('submit', functio
     .then(function(data) {
         resultDiv.style.display = 'block';
         if (data.code === 200) {
-            resultDiv.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:8px;color:#16a34a">' + data.message + '</div>';
+            resultDiv.innerHTML = '<div class="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-xs">' + data.message + '</div>';
             setTimeout(function() { location.reload(); }, 1500);
         } else {
-            resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">' + (data.message || '导入失败') + '</div>';
+            resultDiv.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">' + (data.message || '导入失败') + '</div>';
         }
     })
     .catch(function(err) {
         resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;color:#e74c3c">导入失败: ' + (err.message || '网络错误') + '</div>';
+        resultDiv.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">导入失败: ' + (err.message || '网络错误') + '</div>';
     })
     .finally(function() {
         submitBtn.disabled = false;
-        submitBtn.textContent = '开始导入';
+        submitBtn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg> 开始导入';
     });
 });
 
 function deleteQuestion(qId) {
     if (!confirm('确认删除此题目？')) return;
-
-    var card = document.getElementById('q-' + qId);
+    var row = document.getElementById('q-' + qId);
     var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
     fetch('/teacher/questions/' + qId + '/delete/', {
         method: 'POST',
         headers: {
@@ -124,9 +344,10 @@ function deleteQuestion(qId) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.code === 200) {
-            card.style.transition = 'opacity 0.3s';
-            card.style.opacity = '0';
-            setTimeout(function() { card.remove(); }, 300);
+            row.style.transition = 'all 0.3s ease';
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-20px)';
+            setTimeout(function() { row.remove(); }, 300);
         } else {
             alert(data.message || '删除失败');
         }
@@ -140,11 +361,9 @@ function linkExam(qId, selectEl) {
     var examId = selectEl.value;
     var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     var msgSpan = document.getElementById('link-msg-' + qId);
-
     var formData = new FormData();
     formData.append('csrfmiddlewaretoken', csrfToken);
     formData.append('exam_id', examId);
-
     fetch('/teacher/questions/' + qId + '/link-exam/', {
         method: 'POST',
         headers: {'X-Requested-With': 'XMLHttpRequest'},
@@ -152,21 +371,21 @@ function linkExam(qId, selectEl) {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        msgSpan.style.display = 'inline';
+        msgSpan.classList.remove('hidden');
         if (data.code === 200) {
-            msgSpan.style.color = '#16a34a';
+            msgSpan.className = 'text-xs text-green-600 flex-shrink-0';
             msgSpan.textContent = data.message;
         } else {
-            msgSpan.style.color = '#e74c3c';
+            msgSpan.className = 'text-xs text-red-600 flex-shrink-0';
             msgSpan.textContent = data.message || '操作失败';
         }
-        setTimeout(function() { msgSpan.style.display = 'none'; }, 2000);
+        setTimeout(function() { msgSpan.classList.add('hidden'); }, 2000);
     })
     .catch(function() {
-        msgSpan.style.display = 'inline';
-        msgSpan.style.color = '#e74c3c';
+        msgSpan.classList.remove('hidden');
+        msgSpan.className = 'text-xs text-red-600 flex-shrink-0';
         msgSpan.textContent = '操作失败';
-        setTimeout(function() { msgSpan.style.display = 'none'; }, 2000);
+        setTimeout(function() { msgSpan.classList.add('hidden'); }, 2000);
     });
 }
 </script>

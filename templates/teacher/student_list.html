@@ -1,57 +1,228 @@
 {% extends "base.html" %}
 {% block title %}学生管理 - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:1000px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>学生管理</h2>
-        <a href="/teacher/students/upload/" class="btn btn-primary" style="padding:8px 20px;border-radius:6px;text-decoration:none">批量导入</a>
-    </div>
+<style>
+body {
+    font-family: 'Noto Sans SC', sans-serif !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+.container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out both;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.25s ease;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.search-box:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59,130,246,0.08), 0 2px 8px rgba(59,130,246,0.06);
+}
+.search-box input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #1e293b;
+    outline: none;
+}
+.search-box input::placeholder {
+    color: #94a3b8;
+}
+.search-box .search-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.2);
+}
+.search-box .search-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+    transform: translateY(-1px);
+}
+.search-box .clear-btn {
+    font-size: 13px;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+}
+.search-box .clear-btn:hover {
+    color: #64748b;
+}
+.student-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    margin-bottom: 6px;
+}
+.student-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.status-dot.active { background: #22c55e; }
+.status-dot.inactive { background: #ef4444; }
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    flex-shrink: 0;
+}
+.btn-primary-action {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.2);
+}
+.btn-primary-action:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.btn-secondary-action {
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+.btn-secondary-action:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+.empty-state {
+    text-align: center;
+    padding: 48px 20px;
+}
+.empty-state-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.empty-state-icon svg {
+    width: 24px;
+    height: 24px;
+    color: #94a3b8;
+}
+</style>
 
-    <div class="card" style="padding:16px;margin-bottom:20px">
-        <form method="get" style="display:flex;gap:12px">
-            <input type="text" name="q" value="{{ keyword }}" placeholder="搜索学号、姓名、用户名" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-            <button type="submit" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">搜索</button>
+<div class="min-h-screen bg-slate-50">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 fade-in-up">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">学生管理</h1>
+                <p class="text-slate-500 mt-0.5 text-xs">共 {{ students|length }} 名学生</p>
+            </div>
+            <a href="/teacher/students/upload/" class="btn-action btn-primary-action">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                批量导入
+            </a>
+        </div>
+
+        <form method="get" class="search-box fade-in-up" style="animation-delay: 0.05s">
+            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" name="q" value="{{ keyword }}" placeholder="搜索学号、姓名、用户名">
+            <button type="submit" class="search-btn">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                搜索
+            </button>
             {% if keyword %}
-            <a href="/teacher/students/" class="btn" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;text-decoration:none">清除</a>
+            <a href="/teacher/students/" class="clear-btn">清除</a>
             {% endif %}
         </form>
-    </div>
 
-    <div class="card" style="padding:20px">
-        <table style="width:100%;border-collapse:collapse">
-            <thead>
-                <tr style="border-bottom:2px solid #eee">
-                    <th style="text-align:left;padding:12px 8px">学号</th>
-                    <th style="text-align:left;padding:12px 8px">用户名</th>
-                    <th style="text-align:left;padding:12px 8px">姓名</th>
-                    <th style="text-align:left;padding:12px 8px">邮箱</th>
-                    <th style="text-align:center;padding:12px 8px">状态</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for student in students %}
-                <tr style="border-bottom:1px solid #f0f0f0">
-                    <td style="padding:12px 8px">{{ student.student_id|default:"-" }}</td>
-                    <td style="padding:12px 8px">{{ student.username }}</td>
-                    <td style="padding:12px 8px">{{ student.first_name|default:"-" }}</td>
-                    <td style="padding:12px 8px">{{ student.email|default:"-" }}</td>
-                    <td style="text-align:center;padding:12px 8px">
-                        {% if student.is_active %}
-                        <span style="color:#34a853">正常</span>
-                        {% else %}
-                        <span style="color:#e74c3c">已禁用</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align:center;padding:40px;color:#888">
-                        {% if keyword %}未找到匹配的学生{% else %}暂无学生，可通过"批量导入"添加{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {% for student in students %}
+        <div class="student-row fade-in-up" style="animation-delay: {{ forloop.counter|add:0 }}00ms">
+            <div class="avatar">{{ student.first_name|first|default:student.username|first|upper }}</div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-slate-800">{{ student.first_name|default:student.username }}</span>
+                    <span class="text-xs text-slate-400">{{ student.student_id|default:"" }}</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">{{ student.email|default:"无邮箱" }}</div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="status-dot {% if student.is_active %}active{% else %}inactive{% endif %}"></span>
+                <span class="text-xs text-slate-500">{% if student.is_active %}正常{% else %}已禁用{% endif %}</span>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state fade-in-up">
+            <div class="empty-state-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-700 mb-1">
+                {% if keyword %}未找到匹配的学生{% else %}暂无学生{% endif %}
+            </h3>
+            <p class="text-slate-400 text-xs mb-3">
+                {% if keyword %}请尝试其他搜索关键词{% else %}可通过"批量导入"添加学生{% endif %}
+            </p>
+            {% if not keyword %}
+            <a href="/teacher/students/upload/" class="btn-action btn-primary-action">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                批量导入
+            </a>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

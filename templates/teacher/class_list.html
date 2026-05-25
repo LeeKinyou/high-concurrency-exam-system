@@ -1,145 +1,199 @@
 {% extends "base.html" %}
 {% block title %}班级管理 - 在线考试系统{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+    body {
+        font-family: 'Noto Sans SC', sans-serif !important;
+        background: #f8fafc !important;
+        color: #1e293b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 100vh !important;
+    }
+    .container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    .card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(0,0,0,0.04); }
+    .card-shadow:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 16px 40px rgba(0,0,0,0.06); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:1000px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>班级管理</h2>
-        <button onclick="showCreateForm()" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">创建班级</button>
-    </div>
-
-    <!-- 创建班级表单 -->
-    <div id="create-form" class="card" style="padding:20px;margin-bottom:20px;display:none">
-        <h3>创建班级</h3>
-        <form method="post" action="/teacher/classes/create/" style="margin-top:12px">
-            {% csrf_token %}
-            <div style="margin-bottom:12px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">班级名称 *</label>
-                <input type="text" name="name" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="例如：计科2024级1班">
-            </div>
-            <div style="margin-bottom:12px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">描述</label>
-                <textarea name="description" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="可选"></textarea>
-            </div>
-            <div style="display:flex;gap:8px">
-                <button type="submit" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">保存</button>
-                <button type="button" onclick="hideCreateForm()" class="btn" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;cursor:pointer">取消</button>
-            </div>
-        </form>
-    </div>
-
-    {% for item in class_data %}
-    <div class="card" style="margin-top:12px;padding:20px" id="class-{{ item.class_info.id }}">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-                <h3 style="margin:0">{{ item.class_info.name }}</h3>
-                <span style="color:#888;font-size:14px">{{ item.student_count }}名学生</span>
-            </div>
-            <div style="display:flex;gap:8px">
-                <button onclick="togglePanel({{ item.class_info.id }}, 'search')" style="background:#34a853;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">添加学生</button>
-                <button onclick="togglePanel({{ item.class_info.id }}, 'import')" style="background:#f39c12;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">Excel导入</button>
-                <button onclick="showEditForm({{ item.class_info.id }}, '{{ item.class_info.name }}', '{{ item.class_info.description }}')" style="background:#4a90d9;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">编辑</button>
-                <form method="post" action="/teacher/classes/{{ item.class_info.id }}/delete/" style="display:inline" onsubmit="return confirm('确认删除该班级？')">
-                    {% csrf_token %}
-                    <button type="submit" style="background:#e74c3c;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px">删除</button>
-                </form>
+<div class="min-h-screen bg-slate-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    </div>
+                    <h1 class="text-lg font-bold text-slate-800">班级管理</h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="/teacher/" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">返回仪表盘</a>
+                    <button onclick="showCreateForm()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        创建班级
+                    </button>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- 搜索添加学生面板 -->
-        <div id="search-panel-{{ item.class_info.id }}" class="action-panel" style="display:none;margin-top:12px;padding:12px;background:#f0f4f8;border-radius:8px">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-                <input type="text" id="search-input-{{ item.class_info.id }}" placeholder="输入学号、姓名或用户名搜索" oninput="searchStudents({{ item.class_info.id }})" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px">
-                <button type="button" onclick="togglePanel({{ item.class_info.id }}, 'search')" style="background:#888;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">关闭</button>
-            </div>
-            <div id="search-results-{{ item.class_info.id }}" style="max-height:200px;overflow-y:auto"></div>
-            <div id="search-msg-{{ item.class_info.id }}" style="display:none;padding:8px;border-radius:6px;margin-top:8px"></div>
-        </div>
-
-        <!-- Excel 导入面板 -->
-        <div id="import-panel-{{ item.class_info.id }}" class="action-panel" style="display:none;margin-top:12px;padding:12px;background:#f0f4f8;border-radius:8px">
-            <p style="color:#888;font-size:13px;margin:0 0 8px">Excel 格式：A列=学号（必填），B列=姓名（可选），C列=邮箱（可选）。系统会自动创建学生账号并添加到本班级。</p>
-            <form id="import-form-{{ item.class_info.id }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Create Form -->
+        <div id="create-form" class="hidden bg-white rounded-xl card-shadow p-5 mb-6 border border-amber-100">
+            <h3 class="text-base font-semibold text-slate-800 mb-4">创建班级</h3>
+            <form method="post" action="/teacher/classes/create/" class="space-y-4">
                 {% csrf_token %}
-                <input type="file" name="file" accept=".xlsx,.xls" required style="font-size:13px">
-                <button type="submit" class="btn btn-primary" style="padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px">开始导入</button>
-                <button type="button" onclick="togglePanel({{ item.class_info.id }}, 'import')" style="background:#888;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px">关闭</button>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">班级名称 <span class="text-rose-500">*</span></label>
+                    <input type="text" name="name" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all" placeholder="例如：计科2024级1班">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">描述</label>
+                    <textarea name="description" rows="2" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all resize-none" placeholder="可选"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] transition-all">保存</button>
+                    <button type="button" onclick="hideCreateForm()" class="px-5 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">取消</button>
+                </div>
             </form>
-            <div id="import-msg-{{ item.class_info.id }}" style="display:none;padding:8px;border-radius:6px;margin-top:8px"></div>
         </div>
 
-        {% if item.class_info.description %}
-        <p style="color:#888;font-size:14px;margin-top:8px">{{ item.class_info.description }}</p>
-        {% endif %}
+        {% for item in class_data %}
+        <div class="bg-white rounded-xl card-shadow p-5 mb-4" id="class-{{ item.class_info.id }}">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <h3 class="text-base font-semibold text-slate-800">{{ item.class_info.name }}</h3>
+                    <span class="text-sm text-slate-400">{{ item.student_count }}名学生</span>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="togglePanel({{ item.class_info.id }}, 'search')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        添加学生
+                    </button>
+                    <button onclick="togglePanel({{ item.class_info.id }}, 'import')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        Excel导入
+                    </button>
+                    <button onclick="showEditForm({{ item.class_info.id }}, '{{ item.class_info.name }}', '{{ item.class_info.description }}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        编辑
+                    </button>
+                    <form method="post" action="/teacher/classes/{{ item.class_info.id }}/delete/" class="inline" onsubmit="return confirm('确认删除该班级？')">
+                        {% csrf_token %}
+                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            删除
+                        </button>
+                    </form>
+                </div>
+            </div>
 
-        {% if item.students %}
-        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
-            {% for s in item.students %}
-            <span style="background:#f0f4f8;padding:6px 12px;border-radius:16px;font-size:13px;display:flex;align-items:center;gap:6px">
-                {{ s.first_name|default:s.username }}
-                {% if s.student_id %}<span style="color:#888;font-size:11px">({{ s.student_id }})</span>{% endif %}
-                <form method="post" action="/teacher/classes/{{ item.class_info.id }}/remove-student/{{ s.id }}/" style="display:inline" onsubmit="return confirm('确认移除该学生？')">
+            <!-- Search Panel -->
+            <div id="search-panel-{{ item.class_info.id }}" class="hidden mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="search-input-{{ item.class_info.id }}" placeholder="输入学号、姓名或用户名搜索" oninput="searchStudents({{ item.class_info.id }})" class="flex-1 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+                    <button type="button" onclick="togglePanel({{ item.class_info.id }}, 'search')" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">关闭</button>
+                </div>
+                <div id="search-results-{{ item.class_info.id }}" class="max-h-48 overflow-y-auto rounded-lg bg-white border border-slate-100"></div>
+                <div id="search-msg-{{ item.class_info.id }}" class="hidden mt-2"></div>
+            </div>
+
+            <!-- Import Panel -->
+            <div id="import-panel-{{ item.class_info.id }}" class="hidden mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs text-slate-500 mb-3">Excel 格式：A列=学号（必填），B列=姓名（可选），C列=邮箱（可选）。系统会自动创建学生账号并添加到本班级。</p>
+                <form id="import-form-{{ item.class_info.id }}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     {% csrf_token %}
-                    <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0;margin-left:4px">×</button>
+                    <input type="file" name="file" accept=".xlsx,.xls" required class="flex-1 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                    <div class="flex gap-2">
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] transition-all">开始导入</button>
+                        <button type="button" onclick="togglePanel({{ item.class_info.id }}, 'import')" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">关闭</button>
+                    </div>
                 </form>
-            </span>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
+                <div id="import-msg-{{ item.class_info.id }}" class="hidden mt-2"></div>
+            </div>
 
-    <!-- 编辑表单（隐藏） -->
-    <div id="edit-form-{{ item.class_info.id }}" class="card" style="padding:20px;margin-top:12px;display:none">
-        <h3>编辑班级</h3>
-        <form method="post" action="/teacher/classes/{{ item.class_info.id }}/edit/" style="margin-top:12px">
-            {% csrf_token %}
-            <div style="margin-bottom:12px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">班级名称 *</label>
-                <input type="text" name="name" id="edit-name-{{ item.class_info.id }}" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+            {% if item.class_info.description %}
+            <p class="text-sm text-slate-400 mt-3">{{ item.class_info.description }}</p>
+            {% endif %}
+
+            {% if item.students %}
+            <div class="mt-3 flex flex-wrap gap-2">
+                {% for s in item.students %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                    {{ s.first_name|default:s.username }}
+                    {% if s.student_id %}<span class="text-slate-400">({{ s.student_id }})</span>{% endif %}
+                    <form method="post" action="/teacher/classes/{{ item.class_info.id }}/remove-student/{{ s.id }}/" class="inline" onsubmit="return confirm('确认移除该学生？')">
+                        {% csrf_token %}
+                        <button type="submit" class="ml-1 text-slate-400 hover:text-rose-500 transition-colors leading-none">&times;</button>
+                    </form>
+                </span>
+                {% endfor %}
             </div>
-            <div style="margin-bottom:12px">
-                <label style="display:block;margin-bottom:4px;font-weight:bold">描述</label>
-                <textarea name="description" id="edit-desc-{{ item.class_info.id }}" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px"></textarea>
+            {% endif %}
+        </div>
+
+        <!-- Edit Form -->
+        <div id="edit-form-{{ item.class_info.id }}" class="hidden bg-white rounded-xl card-shadow p-5 mb-4 border border-blue-100">
+            <h3 class="text-base font-semibold text-slate-800 mb-4">编辑班级</h3>
+            <form method="post" action="/teacher/classes/{{ item.class_info.id }}/edit/" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">班级名称 <span class="text-rose-500">*</span></label>
+                    <input type="text" name="name" id="edit-name-{{ item.class_info.id }}" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">描述</label>
+                    <textarea name="description" id="edit-desc-{{ item.class_info.id }}" rows="2" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all resize-none"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="px-5 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] transition-all">保存</button>
+                    <button type="button" onclick="hideEditForm({{ item.class_info.id }})" class="px-5 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">取消</button>
+                </div>
+            </form>
+        </div>
+        {% empty %}
+        <div class="text-center py-16">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
-            <div style="display:flex;gap:8px">
-                <button type="submit" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;cursor:pointer">保存</button>
-                <button type="button" onclick="hideEditForm({{ item.class_info.id }})" class="btn" style="padding:8px 20px;border:1px solid #ddd;border-radius:6px;cursor:pointer">取消</button>
-            </div>
-        </form>
-    </div>
-    {% empty %}
-    <p style="color:#888;text-align:center;padding:40px">暂无班级，点击"创建班级"开始</p>
-    {% endfor %}
+            <p class="text-slate-400">暂无班级，点击"创建班级"开始</p>
+        </div>
+        {% endfor %}
+    </main>
 </div>
+
 <script>
 var searchTimers = {};
 
 function showCreateForm() {
-    document.getElementById('create-form').style.display = 'block';
+    document.getElementById('create-form').classList.remove('hidden');
 }
 function hideCreateForm() {
-    document.getElementById('create-form').style.display = 'none';
+    document.getElementById('create-form').classList.add('hidden');
 }
 function showEditForm(id, name, desc) {
-    document.getElementById('edit-form-' + id).style.display = 'block';
+    document.getElementById('edit-form-' + id).classList.remove('hidden');
     document.getElementById('edit-name-' + id).value = name;
     document.getElementById('edit-desc-' + id).value = desc;
-    document.getElementById('class-' + id).style.display = 'none';
+    document.getElementById('class-' + id).classList.add('hidden');
 }
 function hideEditForm(id) {
-    document.getElementById('edit-form-' + id).style.display = 'none';
-    document.getElementById('class-' + id).style.display = 'block';
+    document.getElementById('edit-form-' + id).classList.add('hidden');
+    document.getElementById('class-' + id).classList.remove('hidden');
 }
 
 function togglePanel(classId, type) {
     var panel = document.getElementById(type + '-panel-' + classId);
-    var isHidden = panel.style.display === 'none';
-    // close all panels for this class
-    var panels = document.getElementById('class-' + classId).querySelectorAll('.action-panel');
-    for (var i = 0; i < panels.length; i++) {
-        panels[i].style.display = 'none';
-    }
+    var isHidden = panel.classList.contains('hidden');
+    var panels = document.getElementById('class-' + classId).querySelectorAll('.action-panel, [id$="-panel-' + classId + '"]');
+    panels.forEach(p => p.classList.add('hidden'));
     if (isHidden) {
-        panel.style.display = 'block';
+        panel.classList.remove('hidden');
         if (type === 'search') {
             document.getElementById('search-input-' + classId).focus();
         }
@@ -163,22 +217,23 @@ function searchStudents(classId) {
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.code !== 200 || !data.data || data.data.length === 0) {
-                    resultsDiv.innerHTML = '<div style="color:#888;padding:8px;font-size:13px">未找到匹配的学生</div>';
+                    resultsDiv.innerHTML = '<div class="p-4 text-sm text-slate-400 text-center">未找到匹配的学生</div>';
                     return;
                 }
-                var html = '';
+                var html = '<div class="divide-y divide-slate-100">';
                 for (var i = 0; i < data.data.length; i++) {
                     var s = data.data[i];
                     var label = (s.name || s.username) + (s.student_id ? ' (' + s.student_id + ')' : '');
-                    html += '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background=\'#e0e7ff\'" onmouseout="this.style.background=\'white\'">';
-                    html += '<span>' + label + '</span>';
-                    html += '<button onclick="addStudent(' + classId + ', ' + s.id + ', this)" style="background:#34a853;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">添加</button>';
+                    html += '<div class="flex items-center justify-between p-3 hover:bg-slate-50 transition-colors">';
+                    html += '<span class="text-sm text-slate-700">' + label + '</span>';
+                    html += '<button onclick="addStudent(' + classId + ', ' + s.id + ', this)" class="px-3 py-1 rounded-lg text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 transition-colors">添加</button>';
                     html += '</div>';
                 }
+                html += '</div>';
                 resultsDiv.innerHTML = html;
             })
             .catch(function() {
-                resultsDiv.innerHTML = '<div style="color:#e74c3c;padding:8px;font-size:13px">搜索失败</div>';
+                resultsDiv.innerHTML = '<div class="p-4 text-sm text-rose-500 text-center">搜索失败</div>';
             });
     }, 300);
 }
@@ -216,15 +271,15 @@ function addStudent(classId, studentId, btn) {
 
 function showMsg(panelType, classId, msg, type) {
     var msgDiv = document.getElementById(panelType + '-msg-' + classId);
-    msgDiv.style.display = 'block';
+    msgDiv.classList.remove('hidden');
     if (type === 'success') {
-        msgDiv.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:8px;border-radius:6px;color:#16a34a;font-size:13px">' + msg + '</div>';
+        msgDiv.innerHTML = '<div class="p-3 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm">' + msg + '</div>';
     } else {
-        msgDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;padding:8px;border-radius:6px;color:#e74c3c;font-size:13px">' + msg + '</div>';
+        msgDiv.innerHTML = '<div class="p-3 rounded-lg bg-rose-50 border border-rose-100 text-rose-600 text-sm">' + msg + '</div>';
     }
 }
 
-// Excel import for class
+// Excel import
 {% for item in class_data %}
 document.getElementById('import-form-{{ item.class_info.id }}').addEventListener('submit', function(e) {
     e.preventDefault();
