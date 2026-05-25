@@ -1,37 +1,213 @@
 {% extends "base.html" %}
 {% block title %}考试列表 - 在线考试系统{% endblock %}
 {% block content %}
-<div class="container" style="max-width:800px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0">
-        <h2>考试列表</h2>
-        <a href="/accounts/logout/" style="color:#e74c3c;text-decoration:none">退出登录</a>
-    </div>
-    {% if exam_data %}
-    {% for item in exam_data %}
-    <div class="card" style="margin-top:12px;padding:20px">
-        <h3 style="margin-bottom:8px">{{ item.exam.title }}</h3>
-        <p style="color:#888;font-size:14px;margin-bottom:12px">{{ item.exam.description|truncatewords:20 }}</p>
-        <div style="display:flex;gap:16px;font-size:13px;color:#666;margin-bottom:12px">
-            <span>时长: {{ item.exam.duration }}分钟</span>
-            <span>满分: {{ item.exam.total_score }}分</span>
-            {% if item.exam.start_time %}<span>开始: {{ item.exam.start_time|date:"Y-m-d H:i" }}</span>{% endif %}
-            {% if item.exam.end_time %}<span>结束: {{ item.exam.end_time|date:"Y-m-d H:i" }}</span>{% endif %}
+<style>
+body {
+    font-family: 'Noto Sans SC', sans-serif !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+.container { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out both;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.exam-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.25s ease;
+    padding: 16px 20px;
+}
+.exam-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border-color: #cbd5e1;
+}
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.status-available { background: #dcfce7; color: #166534; }
+.status-ongoing { background: #fef3c7; color: #92400e; }
+.status-graded { background: #dbeafe; color: #1e40af; }
+.status-ended { background: #f1f5f9; color: #64748b; }
+.status-not-started { background: #f1f5f9; color: #64748b; }
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.btn-primary-action {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+.btn-primary-action:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+}
+.btn-success-action {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+}
+.btn-success-action:hover {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    box-shadow: 0 2px 8px rgba(22,163,74,0.25);
+}
+.btn-warning-action {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+.btn-warning-action:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    box-shadow: 0 2px 8px rgba(217,119,6,0.25);
+}
+.empty-state {
+    text-align: center;
+    padding: 48px 20px;
+}
+.empty-state-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.empty-state-icon svg {
+    width: 24px;
+    height: 24px;
+    color: #94a3b8;
+}
+.meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    color: #94a3b8;
+}
+.meta-item svg {
+    width: 13px;
+    height: 13px;
+}
+</style>
+
+<div class="min-h-screen bg-slate-50">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        <div class="flex items-center justify-between mb-6 fade-in-up">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">考试列表</h1>
+                <p class="text-slate-400 text-xs mt-0.5">查看所有可用考试</p>
+            </div>
+            <a href="/accounts/logout/" class="flex items-center gap-1 text-red-500 hover:text-red-600 text-xs font-medium transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                退出
+            </a>
         </div>
-        {% if item.record %}
-            {% if item.record.is_graded %}
-            <a href="/exams/{{ item.exam.id }}/result/" class="btn" style="background:#27ae60;color:#fff;padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block">查看成绩 ({{ item.record.score }}分)</a>
-            {% else %}
-            <a href="/exams/{{ item.exam.id }}/take/" class="btn" style="background:#f39c12;color:#fff;padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block">继续答题</a>
-            {% endif %}
+
+        {% if exam_data %}
+        <div class="space-y-3">
+            {% for item in exam_data %}
+            <div class="exam-card fade-in-up" style="animation-delay: {{ forloop.counter|add:0 }}00ms">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 class="text-sm font-semibold text-slate-800">{{ item.exam.title }}</h3>
+                            {% if item.record %}
+                                {% if item.record.is_graded %}
+                                <span class="status-badge status-graded">
+                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                    已评分
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-ongoing">
+                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                                    进行中
+                                </span>
+                                {% endif %}
+                            {% else %}
+                                {% if item.exam.is_started and not item.exam.is_ended %}
+                                <span class="status-badge status-available">
+                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                    可参加
+                                </span>
+                                {% elif not item.exam.is_started %}
+                                <span class="status-badge status-not-started">未开始</span>
+                                {% else %}
+                                <span class="status-badge status-ended">已结束</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <p class="text-xs text-slate-400 mb-2 line-clamp-1">{{ item.exam.description|truncatewords:15 }}</p>
+                        <div class="flex flex-wrap gap-x-3 gap-y-1">
+                            <span class="meta-item">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                {{ item.exam.duration }}分钟
+                            </span>
+                            <span class="meta-item">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                {{ item.exam.total_score }}分
+                            </span>
+                            {% if item.exam.start_time %}
+                            <span class="meta-item">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                {{ item.exam.start_time|date:"m-d H:i" }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex items-center flex-shrink-0">
+                        {% if item.record %}
+                            {% if item.record.is_graded %}
+                            <a href="/exams/{{ item.exam.id }}/result/" class="btn-action btn-success-action">
+                                {{ item.record.score }}分
+                            </a>
+                            {% else %}
+                            <a href="/exams/{{ item.exam.id }}/take/" class="btn-action btn-warning-action">继续</a>
+                            {% endif %}
+                        {% else %}
+                            {% if item.exam.is_started and not item.exam.is_ended %}
+                            <a href="/exams/{{ item.exam.id }}/" class="btn-action btn-primary-action">进入</a>
+                            {% elif not item.exam.is_started %}
+                            <span class="text-xs text-slate-400 px-3 py-1.5 bg-slate-100 rounded-lg">未开始</span>
+                            {% else %}
+                            <span class="text-xs text-slate-400 px-3 py-1.5 bg-slate-100 rounded-lg">已结束</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         {% else %}
-        <a href="/exams/{{ item.exam.id }}/" class="btn btn-primary" style="padding:8px 20px;border-radius:6px;text-decoration:none;display:inline-block">进入考试</a>
+        <div class="empty-state fade-in-up">
+            <div class="empty-state-icon">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-700 mb-1">暂无可用考试</h3>
+            <p class="text-slate-400 text-xs">当前没有可参加的考试</p>
+        </div>
         {% endif %}
     </div>
-    {% endfor %}
-    {% else %}
-    <div class="card" style="margin-top:20px;text-align:center;padding:40px">
-        <p style="color:#888">暂无可用考试</p>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
