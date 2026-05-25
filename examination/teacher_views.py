@@ -26,12 +26,16 @@ def dashboard(request):
     question_count = Question.objects.filter(exam__created_by=request.user).count()
     student_count = User.objects.filter(role="student", is_active=True).count()
 
-    return render(request, "teacher/dashboard.html", {
+    # 为新版仪表盘准备考试列表 JSON
+    exams_json = json.dumps([{"id": e.id, "title": e.title} for e in exams], ensure_ascii=False)
+
+    return render(request, "teacher/dashboard_new.html", {
         "exams": exams,
         "classes": classes,
         "exam_count": exam_count,
         "question_count": question_count,
         "student_count": student_count,
+        "exams_json": exams_json,
     })
 
 
